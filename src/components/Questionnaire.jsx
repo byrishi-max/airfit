@@ -38,6 +38,11 @@ const WORKOUT_QUESTIONS = [
 const TOTAL_STEPS = 5;
 
 const css = `
+  .q-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .q-grid-review { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.07); border-radius: 10px; overflow: hidden; }
+  @media (max-width: 600px) {
+    .q-grid, .q-grid-review { grid-template-columns: 1fr !important; }
+  }
   .q-input-wrap { position: relative; }
   .q-field-unit {
     position: absolute; right: 14px; top: 50%; transform: translateY(-50%);
@@ -114,7 +119,7 @@ function Questionnaire({ planType, client, onCancel }) {
     };
 
     const renderFields = (fields) => (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+        <div className="q-grid">
             <style>{css}</style>
             {fields.map(f => (
                 <div key={f.key} style={{ gridColumn: (f.key === 'injuries' || f.key === 'allergies') ? '1 / -1' : 'auto' }}>
@@ -174,10 +179,12 @@ function Questionnaire({ planType, client, onCancel }) {
             {step === 4 && renderFields(specificQ.slice(4))}
 
             {step === 5 && (
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1px', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.07)', borderRadius: '10px', overflow: 'hidden' }}>
+                <div className="q-grid-review">
                     {[
-                        ["Plan", form.planType], ["Name", form.name], ["Email", form.email],
-                        ["Phone", form.phone], ["Goal", form.goal], ["Activity", form.activityLevel]
+                        ["Plan", form.planType],
+                        ["Phone", form.phone],
+                        ...SHARED.map(q => [q.label, form[q.key] ? `${form[q.key]} ${q.unit || ""}`.trim() : ""]),
+                        ...specificQ.map(q => [q.label, form[q.key]])
                     ].map(([k, v]) => (
                         <div key={k} style={{ display: 'flex', flexDirection: 'column', gap: '3px', padding: '14px 16px', background: '#111' }}>
                             <span style={{ fontSize: '9px', fontWeight: '600', letterSpacing: '2px', textTransform: 'uppercase', color: '#777' }}>{k}</span>

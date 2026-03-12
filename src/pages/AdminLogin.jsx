@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../hooks/useAuth';
+import { motion } from 'framer-motion';
+import { Shield, ArrowRight, Lock } from 'lucide-react';
 
 export default function AdminLogin() {
     const [password, setPassword] = useState('');
@@ -19,72 +21,116 @@ export default function AdminLogin() {
 
     return (
         <div style={{
-            minHeight: '100vh',
-            background: '#0C0C0C',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '24px'
+            minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px',
+            position: 'relative', overflow: 'hidden'
         }}>
+            {/* Background elements */}
             <div style={{
-                background: '#1A1A1A',
-                padding: '40px',
-                borderRadius: '16px',
-                width: '100%',
-                maxWidth: '400px',
-                border: '1px solid rgba(255,255,255,0.07)',
-                boxShadow: '0 20px 40px rgba(0,0,0,0.5)'
-            }}>
-                <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-                    <h1 style={{
-                        fontFamily: "'Sora', sans-serif",
-                        fontSize: '28px',
-                        fontWeight: '800',
-                        color: '#F0EDE8',
-                        marginBottom: '8px',
-                        letterSpacing: '-1px'
+                position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                width: '60vw', height: '60vw', background: 'radial-gradient(circle, rgba(239, 68, 68, 0.1) 0%, rgba(0,0,0,0) 70%)',
+                filter: 'blur(80px)', pointerEvents: 'none', zIndex: 0
+            }} />
+
+            <motion.div 
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                style={{ width: '100%', maxWidth: '420px', position: 'relative', zIndex: 1 }}
+            >
+                <div style={{ textAlign: 'center', marginBottom: '40px' }}>
+                    <motion.div 
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        transition={{ delay: 0.2, duration: 0.8 }}
+                        style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', width: '64px', height: '64px', borderRadius: '20px', background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.2)', marginBottom: '24px', boxShadow: '0 8px 32px rgba(239, 68, 68, 0.15)' }}
+                    >
+                        <Shield size={32} color="#ef4444" strokeWidth={1.5} />
+                    </motion.div>
+                    <h1 className="brand-font" style={{
+                        color: '#fff', letterSpacing: '-0.04em', fontWeight: '700',
+                        fontSize: '36px', margin: '0 0 12px'
                     }}>
-                        AIR<em style={{ color: '#FF5C1A', fontStyle: 'normal' }}>FIT</em> GYM
+                        AirFit <span style={{ color: '#ef4444' }}>Admin</span>
                     </h1>
-                    <p style={{ color: '#888', fontSize: '14px' }}>Admin Portal Access</p>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '16px', margin: 0, fontWeight: 300 }}>
+                        Secure Trainer Portal
+                    </p>
                 </div>
 
-                <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-                    <div>
-                        <label style={{
-                            display: 'block',
-                            fontSize: '12px',
-                            color: '#888',
-                            marginBottom: '8px',
-                            fontWeight: '600',
-                            textTransform: 'uppercase',
-                            letterSpacing: '1px'
-                        }}>Admin Password</label>
-                        <input
-                            type="password"
-                            value={password}
-                            onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                            placeholder="Enter password"
+                <div className="glass-panel" style={{
+                    borderRadius: '24px', padding: '40px'
+                }}>
+                    <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+                        <div>
+                            <label style={{
+                                display: 'block', fontSize: '13px', color: 'var(--text-muted)',
+                                marginBottom: '10px', fontWeight: '500', letterSpacing: '0.05em', textTransform: 'uppercase'
+                            }}>Access Passcode</label>
+                            <div style={{ position: 'relative' }}>
+                                <div style={{ position: 'absolute', left: '16px', top: '50%', transform: 'translateY(-50%)', opacity: 0.5 }}>
+                                    <Lock size={18} />
+                                </div>
+                                <input
+                                    type="password"
+                                    value={password}
+                                    onChange={(e) => { setPassword(e.target.value); setError(''); }}
+                                    placeholder="Enter admin passcode"
+                                    style={{
+                                        width: '100%', background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.1)',
+                                        borderRadius: '12px', padding: '16px 16px 16px 48px', color: '#fff', fontSize: '16px',
+                                        outline: 'none', transition: 'all 0.3s ease',
+                                        fontFamily: 'inherit'
+                                    }}
+                                    onFocus={(e) => { e.target.style.borderColor = '#ef4444'; e.target.style.boxShadow = '0 0 0 3px rgba(239, 68, 68, 0.15)'; }}
+                                    onBlur={(e) => { e.target.style.borderColor = 'rgba(255,255,255,0.1)'; e.target.style.boxShadow = 'none'; }}
+                                />
+                            </div>
+                        </div>
+
+                        {error && (
+                            <motion.div 
+                                initial={{ opacity: 0, height: 0 }}
+                                animate={{ opacity: 1, height: 'auto' }}
+                                style={{
+                                    color: '#ef4444', fontSize: '13px', margin: 0,
+                                    background: 'rgba(239,68,68,0.1)', padding: '12px 16px', borderRadius: '8px',
+                                    borderLeft: '3px solid #ef4444'
+                                }}
+                            >{error}</motion.div>
+                        )}
+
+                        <button 
+                            type="submit" 
                             style={{
-                                width: '100%', padding: '14px 16px',
-                                background: '#111', border: '1.5px solid rgba(255,255,255,0.07)',
-                                borderRadius: '8px', color: '#fff', fontSize: '15px'
+                                width: '100%', borderRadius: '12px', padding: '16px',
+                                background: '#ef4444', color: '#fff', border: 'none',
+                                fontSize: '16px', fontWeight: '600', cursor: 'pointer',
+                                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                                transition: 'all 0.2s ease', boxShadow: '0 4px 12px rgba(239, 68, 68, 0.3)'
                             }}
-                        />
-                    </div>
-
-                    {error && <div style={{ color: '#ff4444', fontSize: '13px' }}>{error}</div>}
-
-                    <button type="submit" style={{
-                        padding: '16px', borderRadius: '8px', background: 'linear-gradient(135deg, #FF6B00 0%, #ff4500 100%)',
-                        border: 'none', color: '#fff', fontWeight: '700', fontSize: '15px',
-                        cursor: 'pointer', fontFamily: "'Sora', sans-serif"
-                    }}>
-                        Enter Dashboard →
+                            onMouseOver={(e) => { e.target.style.transform = 'translateY(-2px)'; e.target.style.boxShadow = '0 6px 16px rgba(239, 68, 68, 0.4)'; }}
+                            onMouseOut={(e) => { e.target.style.transform = 'translateY(0)'; e.target.style.boxShadow = '0 4px 12px rgba(239, 68, 68, 0.3)'; }}
+                        >
+                            Authorize Access <ArrowRight size={18} />
+                        </button>
+                    </form>
+                </div>
+                
+                <div style={{ textAlign: 'center', marginTop: '32px' }}>
+                    <button 
+                        onClick={() => navigate('/')}
+                        style={{ 
+                            background: 'none', border: 'none',
+                            color: 'var(--text-muted)', fontSize: '14px', cursor: 'pointer',
+                            transition: 'color 0.2s', padding: '8px'
+                        }}
+                        onMouseOver={(e) => e.target.style.color = '#fff'}
+                        onMouseOut={(e) => e.target.style.color = 'var(--text-muted)'}
+                    >
+                        Return to <span style={{ color: 'var(--primary)' }}>Client Login</span>
                     </button>
-                </form>
-            </div>
+                </div>
+            </motion.div>
         </div>
     );
 }

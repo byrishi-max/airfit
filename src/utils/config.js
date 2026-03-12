@@ -8,5 +8,4 @@ export const ENDPOINTS = {
     INVITE: `${N8N_BASE}/airfit-invite`,
 };
 
-// Always use the live origin so invite emails point to the correct deployment
-export const APP_URL = typeof window !== 'undefined' ? window.location.origin : (process.env.REACT_APP_URL || 'https://airfit.vercel.app');
+export const APP_URL = 'https://workoutplanairfit.vercel.app';
