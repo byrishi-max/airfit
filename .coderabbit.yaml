@@ -1,0 +1,24 @@
+reviews:
+  profile: full
+  high_level_summary: true
+  review_status: true
+  request_changes_workflow: true
+  collapse_walkthrough: false
+
+chat:
+  auto_reply: true
+
+knowledge_base:
+  enabled: true
+
+path_filters:
+  include:
+    - "**/*.js"
+    - "**/*.ts"
+    - "**/*.py"
+    - "**/*.jsx"
+    - "**/*.tsx"
+    - "**/*.go"
+    - "**/*.java"
+    - "**/*.cpp"
+    - "**/*.cs"
