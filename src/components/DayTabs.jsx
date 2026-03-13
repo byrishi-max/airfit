@@ -10,10 +10,7 @@ export default function DayTabs({ days, activeDay, onChange }) {
             borderBottom: '1px solid #2a2a2a',
             scrollbarWidth: 'none' // Firefox
         }}>
-            <style>{`
-        .day-tabs-container::-webkit-scrollbar { display: none; }
-      `}</style>
-
+            
             {shortDays.map((d, index) => {
                 const fullDayName = index === 0 ? 'Monday' :
                     index === 1 ? 'Tuesday' :

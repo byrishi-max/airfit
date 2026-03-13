@@ -44,10 +44,19 @@ export const clearAdminSession = () => localStorage.removeItem('airfit_admin_ses
 // Client Session
 export const getClientSession = () => {
     const data = localStorage.getItem('airfit_client_session');
-    return data ? JSON.parse(data) : null;
+    if (!data) return null;
+    try {
+        const decoded = atob(data);
+        return JSON.parse(decoded);
+    } catch (e) {
+        console.warn('Failed to decode client session');
+        return null;
+    }
 };
 export const setClientSession = (session) => {
-    localStorage.setItem('airfit_client_session', JSON.stringify(session));
+    const str = JSON.stringify(session);
+    const encoded = btoa(str);
+    localStorage.setItem('airfit_client_session', encoded);
 };
 export const clearClientSession = () => {
     localStorage.removeItem('airfit_client_session');

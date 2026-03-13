@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClientPlan } from '../hooks/useClientPlan';
+import { getClientSession } from '../utils/storage';
 
 export default function WaitingScreen() {
     const navigate = useNavigate();
-    const session = JSON.parse(localStorage.getItem('airfit_client_session') || '{}');
+    const session = getClientSession() || {};
     const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
     const client = clients.find(c => c.clientId === session.clientId) || {};
     const submittedAt = client.submittedAt || Date.now();

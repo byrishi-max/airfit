@@ -8,7 +8,11 @@ export const useAdminAuth = () => {
     const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(getAdminSession());
 
     const login = (password) => {
-        if (password === 'airfitadmin2025') {
+    if (!process.env.REACT_APP_ADMIN_PASSWORD) {
+        console.warn('Admin password not set in environment');
+        return false;
+    }
+        if (password === process.env.REACT_APP_ADMIN_PASSWORD) {
             setAdminSession();
             setIsAdminLoggedIn(true);
             return true;

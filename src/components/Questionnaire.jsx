@@ -107,11 +107,12 @@ function Questionnaire({ planType, client, onCancel }) {
         try {
             await fetch(ENDPOINTS.SUBMIT_PLAN, {
                 method: "POST",
-                headers: { "Content-Type": "application/json" },
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.REACT_APP_API_TOKEN}` },
                 body: JSON.stringify(form),
             });
         } catch (e) {
-            // Fire-and-forget — proceed anyway
+            // Log the error but continue; the UI will still navigate to the waiting screen
+            console.warn('Failed to submit plan:', e);
         }
         markPending();
         setLoading(false);
