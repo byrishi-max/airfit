@@ -8,4 +8,4 @@ export const ENDPOINTS = {
     INVITE: `${N8N_BASE}/airfit-invite`,
 };
 
-export const APP_URL = process.env.REACT_APP_URL;
+export const APP_URL = 'https://airfitworkout.vercel.app';
