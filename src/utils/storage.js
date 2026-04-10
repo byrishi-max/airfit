@@ -1,72 +1,114 @@
+export const STORAGE_KEYS = {
+  ADMIN_SESSION: 'airfit_admin_session',
+  CLIENT_SESSION: 'airfit_client_session',
+  CLIENTS: 'airfit_clients',
+  PROGRESS: (clientId, week, day, exercise) => `airfit_progress_${clientId}_w${week}_${day}_${exercise}`,
+  CALORIES: (clientId, date) => `airfit_calories_${clientId}_${date}`
+};
+
+export const getAdminSession = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION));
+export const getClientSession = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENT_SESSION));
+
+export const setAdminSession = (session) => localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(session));
+export const setClientSession = (session) => localStorage.setItem(STORAGE_KEYS.CLIENT_SESSION, JSON.stringify(session));
+
+export const clearSessions = () => {
+  localStorage.removeItem(STORAGE_KEYS.ADMIN_SESSION);
+  localStorage.removeItem(STORAGE_KEYS.CLIENT_SESSION);
+};
+
+
 export const getClients = () => {
-    const data = localStorage.getItem('airfit_clients');
-    return data ? JSON.parse(data) : [];
+  return JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]');
 };
 
-export const saveClients = (clients) => {
-    localStorage.setItem('airfit_clients', JSON.stringify(clients));
+export const saveClient = (client) => {
+  const clients = getClients();
+  const index = clients.findIndex(c => c.clientId === client.clientId);
+  if (index !== -1) {
+    clients[index] = client;
+  } else {
+    clients.push(client);
+  }
+  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
 };
 
-export const getClientByPhone = (phone) => {
-    const clients = getClients();
-    return clients.find(c => c.phone === phone);
-};
-
-export const getClientById = (clientId) => {
-    const clients = getClients();
-    return clients.find(c => c.clientId === clientId);
+export const saveClients = (clientsArray) => {
+  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clientsArray));
 };
 
 export const createClient = (name, email, phone) => {
-    const clients = getClients();
-    const newClient = {
-        clientId: "client_" + Date.now(),
-        name,
-        email,
-        phone,
-        status: "invited",
-        planStatus: "none",
-        workoutPlan: null,
-        dietPlan: null,
-        progress: {},
-        createdAt: new Date().toISOString()
-    };
-    clients.push(newClient);
-    saveClients(clients);
-    return newClient;
+  const clientId = `af_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 6)}`;
+  const newClient = {
+    clientId,
+    name,
+    email: email || '',
+    phone,
+    planStatus: 'none',
+    workoutPlan: null,
+    dietPlan: null,
+    registeredAt: new Date().toISOString(),
+  };
+  saveClient(newClient);
+  return newClient;
 };
 
-// Admin Session
-export const getAdminSession = () => localStorage.getItem('airfit_admin_session') === 'true';
-export const setAdminSession = () => localStorage.setItem('airfit_admin_session', 'true');
-export const clearAdminSession = () => localStorage.removeItem('airfit_admin_session');
+export const findClientByPhone = (phone) => {
+  const clients = getClients();
+  return clients.find(c => c.phone === phone);
+};
 
-// Client Session
-export const getClientSession = () => {
-    const data = localStorage.getItem('airfit_client_session');
-    if (!data) return null;
-    try {
-        const decoded = atob(data);
-        return JSON.parse(decoded);
-    } catch (e) {
-        console.warn('Failed to decode client session');
-        return null;
+export const findClientById = (clientId) => {
+  const clients = getClients();
+  return clients.find(c => c.clientId === clientId);
+};
+
+// Alias used by App.jsx and ClientDashboard
+export const getClient = findClientByPhone;
+
+export const logExerciseWeight = (clientId, exerciseName, weight) => {
+  const clients = getClients();
+  const idx = clients.findIndex(c => c.clientId === clientId);
+  if (idx !== -1) {
+    if (!clients[idx].performanceData) clients[idx].performanceData = {};
+    if (!clients[idx].performanceData[exerciseName]) clients[idx].performanceData[exerciseName] = [];
+    clients[idx].performanceData[exerciseName].unshift({ weight, date: new Date().toISOString() });
+    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
+  }
+};
+
+export const updateClientStatus = (clientId, status, planData = null) => {
+  const clients = getClients();
+  const index = clients.findIndex(c => c.clientId === clientId);
+  if (index !== -1) {
+    clients[index].planStatus = status;
+    if (planData) {
+      clients[index].workoutPlan = planData;
     }
-};
-export const setClientSession = (session) => {
-    const str = JSON.stringify(session);
-    const encoded = btoa(str);
-    localStorage.setItem('airfit_client_session', encoded);
-};
-export const clearClientSession = () => {
-    localStorage.removeItem('airfit_client_session');
+    localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients));
+  }
 };
 
-// Progress
-export const getProgress = (clientId, week, day, exerciseName) => {
-    return localStorage.getItem(`airfit_progress_${clientId}_w${week}_${day}_${exerciseName}`) === 'true';
+export const logDailyCalories = (clientId, food, calories) => {
+  const date = new Date().toISOString().split('T')[0];
+  const key = STORAGE_KEYS.CALORIES(clientId, date);
+  const logs = JSON.parse(localStorage.getItem(key) || '[]');
+  logs.push({ food, calories: Number(calories), time: new Date().toLocaleTimeString() });
+  localStorage.setItem(key, JSON.stringify(logs));
 };
 
-export const setProgress = (clientId, week, day, exerciseName, val) => {
-    localStorage.setItem(`airfit_progress_${clientId}_w${week}_${day}_${exerciseName}`, String(val));
+export const getDailyCalories = (clientId) => {
+  const date = new Date().toISOString().split('T')[0];
+  const key = STORAGE_KEYS.CALORIES(clientId, date);
+  return JSON.parse(localStorage.getItem(key) || '[]');
+};
+
+export const getProgress = (clientId, week, day, exercise) => {
+  const key = STORAGE_KEYS.PROGRESS(clientId, week, day, exercise);
+  return localStorage.getItem(key) === 'true';
+};
+
+export const setProgress = (clientId, week, day, exercise, completed) => {
+  const key = STORAGE_KEYS.PROGRESS(clientId, week, day, exercise);
+  localStorage.setItem(key, String(completed));
 };

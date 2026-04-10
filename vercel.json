@@ -12,7 +12,7 @@
             "headers": [
                 {
                     "key": "Content-Security-Policy",
-                    "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' https://airfitgym.app.n8n.cloud https://www.googleapis.com https://generativelanguage.googleapis.com; img-src 'self' data: https: blob:; frame-src 'self' https://www.youtube.com https://youtube.com;"
+                    "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; connect-src 'self' http://airfitplangen.duckdns.org https://airfitplangen.duckdns.org https://www.googleapis.com https://generativelanguage.googleapis.com; img-src 'self' data: https: blob:; frame-src 'self' https://www.youtube.com https://youtube.com;"
                 },
                 {
                     "key": "X-Frame-Options",

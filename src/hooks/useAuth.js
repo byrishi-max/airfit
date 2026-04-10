@@ -1,70 +1,67 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
-    getAdminSession, setAdminSession, clearAdminSession,
-    getClientSession, setClientSession, clearClientSession
+  findClientByPhone,
+  setAdminSession,
+  setClientSession,
+  clearSessions,
+  getAdminSession,
+  getClientSession,
 } from '../utils/storage';
 
-export const useAdminAuth = () => {
-    const [isAdminLoggedIn, setIsAdminLoggedIn] = useState(getAdminSession());
+export const useAuth = () => {
+  const [admin, setAdmin] = useState(null);
+  const [client, setClient] = useState(null);
+  const [loading, setLoading] = useState(true);
 
-    const login = (password) => {
-    if (!process.env.REACT_APP_ADMIN_PASSWORD) {
-        console.warn('Admin password not set in environment');
-        return false;
+  useEffect(() => {
+    const adminSession = getAdminSession();
+    const clientSession = getClientSession();
+    if (adminSession) setAdmin(adminSession);
+    if (clientSession) setClient(clientSession);
+    setLoading(false);
+  }, []);
+
+  // Single-arg login used by AdminLogin.jsx: login(password)
+  const login = (password) => {
+    const allowed = process.env.REACT_APP_ADMIN_PASSWORD || 'airfitadmin2026';
+    if (password === allowed) {
+      const session = { username: 'admin', role: 'admin' };
+      setAdminSession(session);
+      setAdmin(session);
+      return true;
     }
-        if (password === process.env.REACT_APP_ADMIN_PASSWORD) {
-            setAdminSession();
-            setIsAdminLoggedIn(true);
-            return true;
-        }
-        return false;
-    };
+    return false;
+  };
 
-    const logout = () => {
-        clearAdminSession();
-        setIsAdminLoggedIn(false);
-    };
+  // Two-arg login kept for backwards compatibility
+  const loginAdmin = (username, password) => {
+    if (username === 'ADMIN' && password === 'AIRFIT2025') {
+      const session = { username, role: 'admin' };
+      setAdminSession(session);
+      setAdmin(session);
+      return true;
+    }
+    return false;
+  };
 
-    return { isAdminLoggedIn, login, logout };
+  const loginClient = (phone) => {
+    const foundClient = findClientByPhone(phone);
+    if (foundClient) {
+      setClientSession(foundClient);
+      setClient(foundClient);
+      return true;
+    }
+    return false;
+  };
+
+  const logout = () => {
+    clearSessions();
+    setAdmin(null);
+    setClient(null);
+  };
+
+  return { admin, client, loading, login, loginAdmin, loginClient, logout };
 };
 
-export const useClientAuth = () => {
-    const [clientSession, setSession] = useState(getClientSession());
-
-    const loginByPhone = (rawPhone) => {
-        // Normalize: strip spaces
-        const phone = rawPhone.trim().replace(/\s+/g, '');
-        // Try exact match or suffix match (for country code variants)
-        const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
-        const client = clients.find(c => {
-            const stored = (c.phone || '').trim().replace(/\s+/g, '');
-            return stored === phone || stored.endsWith(phone) || phone.endsWith(stored);
-        });
-
-        if (!client) {
-            return { success: false, error: 'No account found with this phone number. Contact your gym admin.' };
-        }
-
-        const sessionData = {
-            clientId: client.clientId,
-            name: client.name,
-            email: client.email,
-            phone: client.phone
-        };
-        setClientSession(sessionData);
-        setSession(sessionData);
-        return { success: true, client };
-    };
-
-    const logout = () => {
-        clearClientSession();
-        setSession(null);
-    };
-
-    return {
-        isClientLoggedIn: !!clientSession,
-        client: clientSession,
-        loginByPhone,
-        logout
-    };
-};
+export const useClientAuth = useAuth;
+export const useAdminAuth = useAuth;

@@ -8,15 +8,19 @@ export default function ClientLogin() {
     const [phone, setPhone] = useState('');
     const [error, setError] = useState('');
     const navigate = useNavigate();
+    const [isLoggingIn, setIsLoggingIn] = useState(false);
     const { loginByPhone } = useClientAuth();
 
-    const handleLogin = () => {
+    const handleLogin = async () => {
         if (!phone.trim()) {
             setError('Please enter your phone number');
             return;
         }
 
-        const result = loginByPhone(phone.trim());
+        setIsLoggingIn(true);
+        const result = await loginByPhone(phone.trim());
+        setIsLoggingIn(false);
+
         if (!result.success) {
             setError(result.error);
             return;
@@ -115,13 +119,15 @@ export default function ClientLogin() {
                     <button
                         className="premium-button"
                         onClick={handleLogin}
+                        disabled={isLoggingIn}
                         style={{
                             width: '100%', borderRadius: '12px', padding: '16px',
-                            fontSize: '16px', fontWeight: '600', cursor: 'pointer',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
+                            fontSize: '16px', fontWeight: '600', cursor: isLoggingIn ? 'not-allowed' : 'pointer',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+                            opacity: isLoggingIn ? 0.7 : 1
                         }}
                     >
-                        Access Portal <ArrowRight size={18} />
+                        {isLoggingIn ? 'Verifying...' : <>Access Portal <ArrowRight size={18} /></>}
                     </button>
                 </div>
 

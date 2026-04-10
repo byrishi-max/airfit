@@ -13,7 +13,8 @@ export default function ClientDashboard() {
     const [activeForm, setActiveForm] = useState(null);
 
     useEffect(() => {
-        if (planStatus === 'ready') {
+        // Check if client has an existing workout or diet plan, or if planStatus indicates readiness/pending
+        if (client?.workoutPlan || client?.dietPlan || planStatus === 'ready') {
             navigate('/client/plan');
         } else if (planStatus === 'pending') {
             navigate('/client/waiting');

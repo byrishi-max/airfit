@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../hooks/useAuth';
-import { getClients, createClient } from '../utils/storage';
+import { getClients, createClient, saveClients } from '../utils/storage';
 import { sendPortalInvite } from '../utils/inviteClient';
 import AdminClientTable from '../components/AdminClientTable';
+import { ENDPOINTS } from '../utils/config';
 
 export default function AdminDashboard() {
     const { logout } = useAdminAuth();
@@ -15,7 +16,37 @@ export default function AdminDashboard() {
     const [inviteSending, setInviteSending] = useState(false);
 
     useEffect(() => {
-        setClients(getClients());
+        const localClients = getClients();
+        setClients(localClients);
+
+        const syncWithBackend = async () => {
+            try {
+                const res = await fetch(ENDPOINTS.GET_CLIENTS);
+                if (res.ok) {
+                    const backendClients = await res.json();
+                    if (Array.isArray(backendClients)) {
+                        // Merge: Start with backend data
+                        const merged = [...backendClients];
+                        
+                        // Add any local clients not found in backend (to prevent data loss)
+                        localClients.forEach(lc => {
+                            const exists = merged.some(bc => 
+                                bc.clientId === lc.clientId || 
+                                (bc.phone && bc.phone === lc.phone)
+                            );
+                            if (!exists) merged.push(lc);
+                        });
+
+                        setClients(merged);
+                        saveClients(merged);
+                    }
+                }
+            } catch (e) {
+                console.warn('Sync with backend failed (offline or endpoint missing):', e);
+            }
+        };
+
+        syncWithBackend();
     }, []);
 
     const handleLogout = () => {

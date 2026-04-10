@@ -1,97 +1,88 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import React, { useMemo } from 'react';
 import { getProgress } from '../utils/storage';
 
+const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
+
 export default function WeeklyChart({ clientId, weekNumber, workoutJson }) {
-    const days = workoutJson?.days || [];
+    const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
 
-    const weekDays = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+    const data = useMemo(() => {
+        if (!workoutJson || !workoutJson.days) return [];
 
-    const data = weekDays.map(dayName => {
-        const dayPlan = days.find(d => d.day === dayName);
-        const exs = dayPlan?.exercises || [];
+        return STANDARD_DAYS.map(dayName => {
+            const dayPlan = workoutJson.days.find(d => 
+                d.day.toLowerCase() === dayName.toLowerCase() || 
+                (dayName === 'Monday' && d.day.toLowerCase() === 'day 1') ||
+                (dayName === 'Tuesday' && d.day.toLowerCase() === 'day 2') ||
+                (dayName === 'Wednesday' && d.day.toLowerCase() === 'day 3') ||
+                (dayName === 'Thursday' && d.day.toLowerCase() === 'day 4') ||
+                (dayName === 'Friday' && d.day.toLowerCase() === 'day 5') ||
+                (dayName === 'Saturday' && d.day.toLowerCase() === 'day 6') ||
+                (dayName === 'Sunday' && d.day.toLowerCase() === 'day 7')
+            );
+            
+            const exs = dayPlan?.exercises || [];
+            if (exs.length === 0) return { name: dayName, total: 0, done: 0, percent: 0, isRest: true };
 
-        const done = exs.filter(ex => getProgress(clientId, weekNumber, dayName, ex.name)).length;
-        const total = exs.length;
-        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+            const done = exs.filter(ex => getProgress(clientId, weekNumber, dayName, ex.name)).length;
+            const percent = Math.round((done / exs.length) * 100);
 
-        return { day: dayName.slice(0, 3).toUpperCase(), done, total, pct };
-    });
+            return { name: dayName, total: exs.length, done, percent, isRest: false };
+        });
+    }, [clientId, weekNumber, workoutJson]);
 
-    const totalDone = data.reduce((a, d) => a + d.done, 0);
-    const totalExs = data.reduce((a, d) => a + d.total, 0);
+    const totalDone = data.reduce((a, b) => a + b.done, 0);
+    const totalExs = data.reduce((a, b) => a + b.total, 0);
     const totalPct = totalExs > 0 ? Math.round((totalDone / totalExs) * 100) : 0;
-    const streak = (() => {
-        let s = 0;
-        for (let i = data.length - 1; i >= 0; i--) {
-            if (data[i].pct === 100) s++; else break;
-        }
-        return s;
-    })();
-    const bestDay = data.reduce((a, d) => d.done > a.done ? d : a, data[0]);
-
-    const getColor = pct => {
-        if (pct === 100) return '#22c55e';
-        if (pct >= 50) return '#FF5C1A';
-        return '#2a2a2a';
-    };
 
     return (
-        <div>
-            {/* Stats grid */}
+        <div style={{ marginBottom: '24px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px', marginBottom: '24px' }}>
-                {[
-                    { label: 'Done This Week', value: `${totalDone} / ${totalExs}`, color: '#FF5C1A' },
-                    { label: 'Completion', value: `${totalPct}%`, color: totalPct === 100 ? '#22c55e' : '#FF5C1A' },
-                    { label: 'Current Streak', value: `${streak} days 🔥`, color: '#ff8c42' },
-                    { label: 'Best Day', value: bestDay?.day || '—', color: '#4488ff' },
-                ].map(({ label, value, color }) => (
-                    <div key={label} style={{ background: '#111', borderRadius: '12px', padding: '20px', border: '1px solid #1a1a1a' }}>
-                        <div style={{ color: '#555', fontSize: '11px', marginBottom: '8px', letterSpacing: '1px', textTransform: 'uppercase', fontWeight: '600' }}>{label}</div>
-                        <div style={{ color, fontSize: '24px', fontWeight: '800', fontFamily: "'Sora', sans-serif" }}>{value}</div>
-                    </div>
-                ))}
+                <div style={{ background: '#111', borderRadius: '12px', padding: '16px', border: '1px solid #1a1a1a' }}>
+                    <div style={{ color: '#555', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700', marginBottom: '4px' }}>Completion</div>
+                    <div style={{ color: '#fff', fontSize: '20px', fontWeight: '800' }}>{totalPct}%</div>
+                </div>
+                <div style={{ background: '#111', borderRadius: '12px', padding: '16px', border: '1px solid #1a1a1a' }}>
+                    <div style={{ color: '#555', fontSize: '10px', textTransform: 'uppercase', letterSpacing: '1px', fontWeight: '700', marginBottom: '4px' }}>Total Exercises</div>
+                    <div style={{ color: '#FF5C1A', fontSize: '20px', fontWeight: '800' }}>{totalDone} / {totalExs}</div>
+                </div>
             </div>
 
-            {/* Bar chart */}
-            <div style={{ background: '#111', borderRadius: '12px', padding: '24px', border: '1px solid #1a1a1a' }}>
-                <p style={{ color: '#888', fontSize: '12px', fontWeight: '700', margin: '0 0 20px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                    📊 This Week's Progress
-                </p>
-                <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={data} barSize={32} margin={{ top: 0, right: 0, bottom: 0, left: -24 }}>
-                        <XAxis dataKey="day" tick={{ fill: '#555', fontSize: 11, fontWeight: '600' }} axisLine={false} tickLine={false} dy={8} />
-                        <YAxis domain={[0, 100]} hide />
-                        <Tooltip
-                            cursor={{ fill: 'rgba(255,255,255,0.02)' }}
-                            content={({ active, payload }) => {
-                                if (active && payload && payload.length) {
-                                    const d = payload[0].payload;
-                                    return (
-                                        <div style={{ background: '#080808', border: '1px solid rgba(255,92,26,0.3)', padding: '10px 14px', borderRadius: '8px', color: '#fff', fontSize: '13px', fontWeight: '600' }}>
-                                            {d.done} / {d.total} exercises
-                                        </div>
-                                    );
-                                }
-                                return null;
-                            }}
-                        />
-                        <Bar dataKey="pct" radius={[4, 4, 0, 0]}>
-                            {data.map((entry, i) => (
-                                <Cell key={i} fill={getColor(entry.pct)} />
-                            ))}
-                        </Bar>
-                    </BarChart>
-                </ResponsiveContainer>
-
-                {/* Legend */}
-                <div style={{ display: 'flex', gap: '20px', marginTop: '16px', justifyContent: 'center' }}>
-                    {[['#22c55e', 'Complete'], ['#FF5C1A', 'In Progress'], ['#2a2a2a', 'Not Started']].map(([c, l]) => (
-                        <div key={l} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                            <div style={{ width: '10px', height: '10px', borderRadius: '2px', background: c }} />
-                            <span style={{ color: '#555', fontSize: '11px' }}>{l}</span>
-                        </div>
-                    ))}
+            <div style={{ 
+                background: '#111', border: '1px solid #1a1a1a', borderRadius: '12px', 
+                padding: '24px', display: 'flex', flexDirection: 'column', gap: '24px' 
+            }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', height: '140px', gap: '8px' }}>
+                    {data.map((d, i) => {
+                        const isToday = d.name === today;
+                        return (
+                            <div key={i} style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ flex: 1, width: '100%', position: 'relative', display: 'flex', flexDirection: 'column', justifyContent: 'flex-end' }}>
+                                    <div style={{ 
+                                        width: '100%', height: '100%', background: '#0a0a0a', borderRadius: '4px', overflow: 'hidden', 
+                                        position: 'relative', border: isToday ? '1px solid rgba(255, 92, 26, 0.4)' : '1px solid #111'
+                                    }}>
+                                        {!d.isRest && d.percent > 0 && (
+                                            <div style={{
+                                                position: 'absolute', bottom: 0, left: 0, right: 0, height: `${d.percent}%`,
+                                                background: d.percent === 100 ? '#22c55e' : 'linear-gradient(to top, #FF5C1A, #ff8c42)',
+                                                borderRadius: '2px', transition: 'height 0.8s ease-out',
+                                            }} />
+                                        )}
+                                        {d.isRest && (
+                                            <div style={{ position: 'absolute', bottom: 10, left: '50%', transform: 'translateX(-50%)', width: '4px', height: '4px', background: '#333', borderRadius: '50%' }} />
+                                        )}
+                                    </div>
+                                </div>
+                                <span style={{ 
+                                    fontSize: '9px', color: isToday ? '#FF5C1A' : '#444', fontWeight: isToday ? '800' : '600', 
+                                    textTransform: 'uppercase' 
+                                }}>
+                                    {d.name.substring(0, 3)}
+                                </span>
+                            </div>
+                        );
+                    })}
                 </div>
             </div>
         </div>

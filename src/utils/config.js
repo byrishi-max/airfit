@@ -6,6 +6,8 @@ export const ENDPOINTS = {
     GET_PLAN: `${N8N_BASE}/airfit-get-plan`,
     PLAN_READY: `${N8N_BASE}/airfit-plan-ready`,
     INVITE: `${N8N_BASE}/airfit-invite`,
+    GET_CLIENTS: `${N8N_BASE}/airfit-get-clients`,
+    FIND_CLIENT: `${N8N_BASE}/airfit-find-client`,
 };
 
 export const APP_URL = 'https://airfitworkout.vercel.app';
