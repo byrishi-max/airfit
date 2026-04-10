@@ -1,0 +1,166 @@
+﻿{
+    "updatedAt":  "2026-04-09T05:46:20.054Z",
+    "createdAt":  "2026-04-01T14:33:53.882Z",
+    "id":  "5WJMgjRnuIJVdA3h",
+    "name":  "Airfit Gym — Portal Invite Email",
+    "description":  null,
+    "active":  false,
+    "isArchived":  false,
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "airfit-invite",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "6107dcbc-1f78-48ff-9a20-d3ed62837b9c",
+                      "name":  "Receive Invite Request",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       0
+                                   ],
+                      "webhookId":  "airfit-invite-wh"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const raw = $input.first().json;\n\n// Unwrap webhook v2 envelope\nconst body = (raw.body \u0026\u0026 typeof raw.body === \u0027object\u0027 \u0026\u0026 Object.keys(raw.body).length \u003e 0)\n             ? raw.body\n             : raw;\n\nconst name   = body.name   || \u0027Athlete\u0027;\nconst email  = body.email  || \u0027\u0027;\nconst phone  = body.phone  || \u0027\u0027;\nconst appUrl = body.appUrl || \u0027https://workoutplanairfit.vercel.app/client/login\u0027;\n\nif (!email) {\n  throw new Error(\u0027Missing email address. Received keys: \u0027 + Object.keys(body).join(\u0027, \u0027));\n}\n\nconst html = `\u003c!DOCTYPE html\u003e\n\u003chtml\u003e\n\u003chead\u003e\u003cmeta charset=\"UTF-8\"\u003e\u003cmeta name=\"viewport\" content=\"width=device-width,initial-scale=1\"\u003e\u003c/head\u003e\n\u003cbody style=\"margin:0;padding:0;background:#0d0d0d;font-family:Arial,Helvetica,sans-serif;\"\u003e\n\u003ctable width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#0d0d0d;padding:32px 0;\"\u003e\n\u003ctr\u003e\u003ctd align=\"center\"\u003e\n\u003ctable width=\"520\" cellpadding=\"0\" cellspacing=\"0\" style=\"background:#111;border-radius:14px;overflow:hidden;border:1px solid #1a1a1a;\"\u003e\n  \u003ctr\u003e\u003ctd style=\"background:linear-gradient(135deg,#FF5C1A 0%,#cc2200 100%);padding:36px 32px;text-align:center;\"\u003e\n    \u003ch1 style=\"color:#fff;font-size:26px;margin:0;letter-spacing:8px;font-weight:900;text-transform:uppercase;\"\u003eAIRFIT GYM\u003c/h1\u003e\n    \u003cdiv style=\"width:40px;height:3px;background:rgba(255,255,255,0.3);margin:12px auto;border-radius:2px;\"\u003e\u003c/div\u003e\n    \u003cp style=\"color:rgba(255,255,255,0.75);font-size:11px;margin:0;letter-spacing:3px;text-transform:uppercase;\"\u003eTraining Portal Invite\u003c/p\u003e\n  \u003c/td\u003e\u003c/tr\u003e\n  \u003ctr\u003e\u003ctd style=\"padding:32px;\"\u003e\n    \u003cp style=\"color:#f0f0f0;font-size:16px;font-weight:700;margin:0 0 12px;\"\u003eHey ${name}! 👋\u003c/p\u003e\n    \u003cp style=\"color:#aaa;font-size:14px;line-height:1.7;margin:0 0 20px;\"\u003e\n      You\u0027ve been added to the \u003cstrong style=\"color:#FF5C1A;\"\u003eAirfit Gym Training Portal\u003c/strong\u003e.\n      Your personalized AI workout plan is waiting — just login and fill out a quick questionnaire,\n      and within 60 minutes you\u0027ll have a fully custom 6-day plan with YouTube tutorials for every exercise.\n    \u003c/p\u003e\n    \u003cdiv style=\"text-align:center;margin:28px 0;\"\u003e\n      \u003ca href=\"${appUrl}\" style=\"display:inline-block;background:linear-gradient(90deg,#FF5C1A,#cc3300);color:#fff;padding:15px 36px;border-radius:8px;text-decoration:none;font-weight:900;font-size:14px;letter-spacing:2px;text-transform:uppercase;\"\u003e\n        Enter Training Portal →\n      \u003c/a\u003e\n    \u003c/div\u003e\n    \u003cdiv style=\"background:#0d0d0d;border-radius:10px;padding:18px;border:1px solid #1a1a1a;margin-top:20px;\"\u003e\n      \u003cp style=\"color:#555;font-size:11px;text-transform:uppercase;letter-spacing:2px;margin:0 0 10px;\"\u003eHOW TO LOGIN\u003c/p\u003e\n      \u003cp style=\"color:#888;font-size:13px;margin:0 0 8px;\"\u003e1. Click the button above\u003c/p\u003e\n      \u003cp style=\"color:#888;font-size:13px;margin:0 0 8px;\"\u003e2. Enter your phone number: \u003cstrong style=\"color:#FF5C1A;font-family:monospace;letter-spacing:2px;\"\u003e${phone}\u003c/strong\u003e\u003c/p\u003e\n      \u003cp style=\"color:#888;font-size:13px;margin:0;\"\u003e3. Fill your fitness questionnaire \u0026 get your AI plan!\u003c/p\u003e\n    \u003c/div\u003e\n  \u003c/td\u003e\u003c/tr\u003e\n  \u003ctr\u003e\u003ctd style=\"padding:0 32px;\"\u003e\u003cdiv style=\"height:1px;background:linear-gradient(90deg,transparent,#FF5C1A,transparent);\"\u003e\u003c/div\u003e\u003c/td\u003e\u003c/tr\u003e\n  \u003ctr\u003e\u003ctd style=\"background:#0a0a0a;padding:22px 32px;text-align:center;\"\u003e\n    \u003cp style=\"color:#FF5C1A;font-size:13px;font-weight:900;margin:0 0 6px;letter-spacing:1px;\"\u003e💪 Train Smart. Train Hard. Train With AI.\u003c/p\u003e\n    \u003cp style=\"color:#2a2a2a;font-size:10px;margin:0;letter-spacing:1px;\"\u003eAIRFIT GYM © 2025\u003c/p\u003e\n  \u003c/td\u003e\u003c/tr\u003e\n\u003c/table\u003e\n\u003c/td\u003e\u003c/tr\u003e\u003c/table\u003e\n\u003c/body\u003e\u003c/html\u003e`;\n\nreturn [{ json: {\n  toEmail:  email,\n  subject:  \"🏋️ You\u0027re Invited to Airfit Gym Training Portal!\",\n  htmlBody: html,\n  name,\n  phone\n}}];"
+                                     },
+                      "id":  "aeb4cb8d-aff3-4bb4-a081-1bfe5c516429",
+                      "name":  "Build Invite Email",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "sendTo":  "={{ $json.toEmail }}",
+                                         "subject":  "={{ $json.subject }}",
+                                         "message":  "={{ $json.htmlBody }}",
+                                         "options":  {
+                                                         "replyTo":  "airfitofficial24@gmail.com"
+                                                     }
+                                     },
+                      "id":  "43e45e66-6497-4039-8947-3757651c4cab",
+                      "name":  "Send Invite Email",
+                      "type":  "n8n-nodes-base.gmail",
+                      "typeVersion":  2.2,
+                      "position":  [
+                                       480,
+                                       0
+                                   ],
+                      "webhookId":  "cb52e808-7f83-4189-969d-3e1f42f86eae",
+                      "credentials":  {
+                                          "gmailOAuth2":  {
+                                                              "id":  "zf3m1aRux3SuJfw6",
+                                                              "name":  "Gmail account"
+                                                          }
+                                      }
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "{\"success\":true,\"message\":\"Invite sent!\"}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "52d0fa35-9380-43c8-95cb-d15aa30bd206",
+                      "name":  "Respond Success",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       720,
+                                       0
+                                   ]
+                  }
+              ],
+    "connections":  {
+                        "Receive Invite Request":  {
+                                                       "main":  [
+                                                                    [
+                                                                        {
+                                                                            "node":  "Build Invite Email",
+                                                                            "type":  "main",
+                                                                            "index":  0
+                                                                        }
+                                                                    ]
+                                                                ]
+                                                   },
+                        "Build Invite Email":  {
+                                                   "main":  [
+                                                                [
+                                                                    {
+                                                                        "node":  "Send Invite Email",
+                                                                        "type":  "main",
+                                                                        "index":  0
+                                                                    }
+                                                                ]
+                                                            ]
+                                               },
+                        "Send Invite Email":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Respond Success",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "availableInMCP":  true
+                 },
+    "staticData":  null,
+    "meta":  {
+                 "templateCredsSetupCompleted":  true
+             },
+    "pinData":  {
+
+                },
+    "versionId":  "75b5ef1e-1a26-499c-88fb-7fe17a063c3f",
+    "activeVersionId":  null,
+    "versionCounter":  3,
+    "triggerCount":  0,
+    "shared":  [
+                   {
+                       "updatedAt":  "2026-04-01T14:33:53.894Z",
+                       "createdAt":  "2026-04-01T14:33:53.894Z",
+                       "role":  "workflow:owner",
+                       "workflowId":  "5WJMgjRnuIJVdA3h",
+                       "projectId":  "azIIK8SPhhWZoIA4",
+                       "project":  {
+                                       "updatedAt":  "2026-03-26T16:49:52.943Z",
+                                       "createdAt":  "2026-03-26T13:05:18.450Z",
+                                       "id":  "azIIK8SPhhWZoIA4",
+                                       "name":  "Airfit  Gym \u003cairfitofficial24@gmail.com\u003e",
+                                       "type":  "personal",
+                                       "icon":  null,
+                                       "description":  null,
+                                       "creatorId":  "bf985987-4aa6-4f16-9057-64373dd765b2"
+                                   }
+                   }
+               ],
+    "tags":  [
+
+             ],
+    "activeVersion":  null
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../hooks/useAuth';
-import { getClients, createClient, saveClients } from '../utils/storage';
+import { getClients, createClient, saveClients, deleteClient } from '../utils/storage';
 import { sendPortalInvite } from '../utils/inviteClient';
 import AdminClientTable from '../components/AdminClientTable';
 import { ENDPOINTS } from '../utils/config';
@@ -25,11 +25,13 @@ export default function AdminDashboard() {
                 if (res.ok) {
                     const backendClients = await res.json();
                     if (Array.isArray(backendClients)) {
-                        // Merge: Start with backend data
-                        const merged = [...backendClients];
+                        const deletedIds = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
+                        // Merge: Start with backend data, excluding deleted
+                        const merged = [...backendClients].filter(c => !deletedIds.includes(c.clientId));
                         
                         // Add any local clients not found in backend (to prevent data loss)
                         localClients.forEach(lc => {
+                            if (deletedIds.includes(lc.clientId)) return;
                             const exists = merged.some(bc => 
                                 bc.clientId === lc.clientId || 
                                 (bc.phone && bc.phone === lc.phone)
@@ -82,6 +84,13 @@ export default function AdminDashboard() {
         } else {
             showToast(`✅ Client added! (Invite email failed — send manually. Login phone: ${clientPhone})`, 'warning');
         }
+    };
+
+    const handleDeleteClient = (client) => {
+        if (!window.confirm(`Are you sure you want to delete ${client.name}?`)) return;
+        deleteClient(client.clientId);
+        setClients(prev => prev.filter(c => c.clientId !== client.clientId));
+        showToast(`🗑️ Deleted client ${client.name}`, 'success');
     };
 
     return (
@@ -153,7 +162,7 @@ export default function AdminDashboard() {
                             Clients Directory
                             <span style={{ marginLeft: '10px', color: '#555', fontWeight: '400', fontSize: '14px' }}>({clients.length} total)</span>
                         </h2>
-                        <AdminClientTable clients={clients} onViewPlan={(c) => setSelectedClient(c)} />
+                        <AdminClientTable clients={clients} onViewPlan={(c) => setSelectedClient(c)} onDeleteClient={handleDeleteClient} />
                     </div>
                 </div>
             </main>
@@ -192,8 +201,8 @@ export default function AdminDashboard() {
                                         </div>
                                     ))}
                                 </div>
-                            ) : selectedClient.planHtml ? (
-                                <div dangerouslySetInnerHTML={{ __html: selectedClient.planHtml }} />
+                            ) : selectedClient.dietHtml ? (
+                                <div dangerouslySetInnerHTML={{ __html: selectedClient.dietHtml }} />
                             ) : (
                                 <p>No plan data available yet.</p>
                             )}

@@ -1,0 +1,449 @@
+﻿{
+    "updatedAt":  "2026-04-09T05:46:11.034Z",
+    "createdAt":  "2026-04-01T14:32:39.874Z",
+    "id":  "N7ujfqztm0xMe1Iu",
+    "name":  "Airfit Gym — Plan Store",
+    "description":  null,
+    "active":  false,
+    "isArchived":  false,
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "airfit-plan-ready",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "2dbb56ab-92bc-427b-9698-bc0ea4cb2f70",
+                      "name":  "Receive Plan",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       0
+                                   ],
+                      "webhookId":  "airfit-plan-ready-wh"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Receives completed plan from Plan Generator, stores in static data\nconst store = $getWorkflowStaticData(\u0027global\u0027);\nconst raw   = $input.first().json;\n\n// Unwrap webhook v2 envelope — body may be nested or flat\nconst body  = (raw.body \u0026\u0026 typeof raw.body === \u0027object\u0027 \u0026\u0026 Object.keys(raw.body).length \u003e 0)\n              ? raw.body\n              : raw;\n\nif (!body.clientId) {\n  return [{ json: { success: false, error: \u0027Missing clientId\u0027 } }];\n}\n\nstore[body.clientId] = {\n  clientId:    body.clientId,\n  clientName:  body.clientName  || \u0027\u0027,\n  clientEmail: body.clientEmail || \u0027\u0027,\n  clientPhone: body.clientPhone || \u0027\u0027,\n  planType:    body.planType    || \u0027\u0027,\n  isDiet:      !!body.isDiet,\n  workoutJson: body.workoutJson || null,\n  dietHtml:    body.dietHtml    || null,\n  generatedAt: body.generatedAt || new Date().toISOString(),\n  status:      \u0027ready\u0027\n};\n\nreturn [{ json: { success: true, clientId: body.clientId } }];"
+                                     },
+                      "id":  "657c2c51-7378-424e-9434-a6bab4e3e9f7",
+                      "name":  "Store Plan",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify($json) }}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "45b453a0-931c-4bce-9f0b-78e8f82f5b35",
+                      "name":  "Respond Store",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       480,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "path":  "airfit-get-plan",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "d0da7ebf-51e0-4a30-bb00-39849ce5022b",
+                      "name":  "Get Plan",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       208
+                                   ],
+                      "webhookId":  "airfit-get-plan-wh"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// Web app polls this to check if plan is ready\nconst store = $getWorkflowStaticData(\u0027global\u0027);\nconst raw   = $input.first().json;\n\n// GET requests: clientId comes in query params — try all access patterns\nconst clientId = raw.query?.clientId\n              || raw.params?.clientId\n              || raw.body?.clientId\n              || raw.clientId\n              || \u0027\u0027;\n\nif (!clientId) {\n  return [{ json: { status: \u0027error\u0027, error: \u0027Missing clientId\u0027 } }];\n}\n\nconst plan = store[clientId];\nif (!plan) {\n  return [{ json: { status: \u0027pending\u0027, clientId } }];\n}\n\nreturn [{ json: { status: \u0027ready\u0027, ...plan } }];"
+                                     },
+                      "id":  "fc429474-b427-400a-a0ce-1fce021221cb",
+                      "name":  "Lookup Plan",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       208
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify({ status: $json.status, clientId: $json.clientId, workoutJson: $json.workoutJson || null, dietHtml: $json.dietHtml || null, planType: $json.planType || \u0027\u0027, generatedAt: $json.generatedAt || \u0027\u0027, isDiet: $json.isDiet || false }) }}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "2a853412-56d9-40a4-ab84-be71210b69c2",
+                      "name":  "Respond Get",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       480,
+                                       208
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "path":  "airfit-get-clients",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "e4c0362b-8ee6-4869-84c1-efec639a5c2f",
+                      "name":  "Get Clients",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       416
+                                   ],
+                      "webhookId":  "airfit-get-clients-wh"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GET /airfit-get-clients\n// Returns all clients stored in static data as a flat array\n// Also accepts ?phone=xxx to filter by phone (for VERIFY_CLIENT)\nconst store = $getWorkflowStaticData(\u0027global\u0027);\nconst raw   = $input.first().json;\n\n// Build array of all client entries\n// static data keys: clientId entries (client_xxx) + any other metadata\nconst allClients = Object.entries(store)\n  .filter(([key, val]) =\u003e key.startsWith(\u0027client_\u0027) \u0026\u0026 typeof val === \u0027object\u0027 \u0026\u0026 val !== null)\n  .map(([_, val]) =\u003e ({\n    clientId:    val.clientId    || \u0027\u0027,\n    name:        val.clientName  || \u0027\u0027,\n    email:       val.clientEmail || \u0027\u0027,\n    phone:       val.clientPhone || \u0027\u0027,\n    planStatus:  val.status      || \u0027pending\u0027,\n    planType:    val.planType    || \u0027\u0027,\n    generatedAt: val.generatedAt || \u0027\u0027,\n    isDiet:      val.isDiet      || false\n  }));\n\nreturn [{ json: { clients: allClients, total: allClients.length } }];"
+                                     },
+                      "id":  "75a3abd6-3c61-4199-b4a4-95cf6194e84e",
+                      "name":  "List Clients",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       416
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify($json.clients) }}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 },
+                                                                                                 {
+                                                                                                     "name":  "Content-Type",
+                                                                                                     "value":  "application/json"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "e600b48a-d313-49ad-a6fd-688a16dd2a40",
+                      "name":  "Respond Clients",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       480,
+                                       416
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "path":  "airfit-verify-client",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "9569e063-9fef-43b8-8ad4-bf795ff3ad12",
+                      "name":  "Verify Client",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       624
+                                   ],
+                      "webhookId":  "airfit-verify-client-wh"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// GET /airfit-verify-client?phone=9876543210\n// Also supports ?clientId=client_xxx for direct lookup\n// Returns single client object or { error: \u0027not_found\u0027 }\nconst store = $getWorkflowStaticData(\u0027global\u0027);\nconst raw   = $input.first().json;\n\nconst phone    = raw.query?.phone    || raw.phone    || \u0027\u0027;\nconst clientId = raw.query?.clientId || raw.clientId || \u0027\u0027;\n\n// Search by clientId first (faster)\nif (clientId \u0026\u0026 store[clientId]) {\n  const val = store[clientId];\n  return [{ json: {\n    found:       true,\n    clientId:    val.clientId    || \u0027\u0027,\n    name:        val.clientName  || \u0027\u0027,\n    email:       val.clientEmail || \u0027\u0027,\n    phone:       val.clientPhone || \u0027\u0027,\n    planStatus:  val.status      || \u0027pending\u0027,\n    planType:    val.planType    || \u0027\u0027,\n    generatedAt: val.generatedAt || \u0027\u0027,\n    isDiet:      val.isDiet      || false,\n    workoutJson: val.workoutJson || null,\n    dietHtml:    val.dietHtml    || null\n  }}];\n}\n\n// Search by phone number (normalize: strip spaces, leading zeros, country code)\nif (phone) {\n  const normalize = (p) =\u003e (p || \u0027\u0027).replace(/\\D/g, \u0027\u0027).slice(-10);\n  const searchPhone = normalize(phone);\n\n  const match = Object.values(store).find(val =\u003e\n    typeof val === \u0027object\u0027 \u0026\u0026 val !== null \u0026\u0026\n    normalize(val.clientPhone) === searchPhone\n  );\n\n  if (match) {\n    return [{ json: {\n      found:       true,\n      clientId:    match.clientId    || \u0027\u0027,\n      name:        match.clientName  || \u0027\u0027,\n      email:       match.clientEmail || \u0027\u0027,\n      phone:       match.clientPhone || \u0027\u0027,\n      planStatus:  match.status      || \u0027pending\u0027,\n      planType:    match.planType    || \u0027\u0027,\n      generatedAt: match.generatedAt || \u0027\u0027,\n      isDiet:      match.isDiet      || false,\n      workoutJson: match.workoutJson || null,\n      dietHtml:    match.dietHtml    || null\n    }}];\n  }\n}\n\n// Not found\nreturn [{ json: { found: false, error: \u0027not_found\u0027, phone, clientId } }];"
+                                     },
+                      "id":  "e34a41a5-bed5-4780-94c1-2a2bbc389c28",
+                      "name":  "Lookup Client",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       624
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify($json) }}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 },
+                                                                                                 {
+                                                                                                     "name":  "Content-Type",
+                                                                                                     "value":  "application/json"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "6dcc503b-25fa-4c02-8bbf-15cd50438aec",
+                      "name":  "Respond Verify",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       480,
+                                       624
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "airfit-register-client",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "66f0d344-e469-46b5-9dc5-4e7cebb947a2",
+                      "name":  "Register Client",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       0,
+                                       832
+                                   ],
+                      "webhookId":  "airfit-register-client-wh"
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "// POST /airfit-register-client\n// Admin adds a new client — stores their record in static data\n// Body: { clientId, name, email, phone }\nconst store = $getWorkflowStaticData(\u0027global\u0027);\nconst raw   = $input.first().json;\n\nconst body = (raw.body \u0026\u0026 typeof raw.body === \u0027object\u0027 \u0026\u0026 Object.keys(raw.body).length \u003e 0)\n             ? raw.body : raw;\n\nconst clientId = body.clientId || (\u0027client_\u0027 + Date.now());\nconst name     = body.name     || \u0027\u0027;\nconst email    = body.email    || \u0027\u0027;\nconst phone    = body.phone    || \u0027\u0027;\n\nif (!name || !phone) {\n  return [{ json: { success: false, error: \u0027name and phone are required\u0027 } }];\n}\n\n// Don\u0027t overwrite if already has a plan\nif (store[clientId] \u0026\u0026 store[clientId].status === \u0027ready\u0027) {\n  return [{ json: { success: true, clientId, message: \u0027Client already has a plan — not overwritten\u0027 } }];\n}\n\nstore[clientId] = {\n  clientId,\n  clientName:  name,\n  clientEmail: email,\n  clientPhone: phone,\n  planType:    \u0027\u0027,\n  isDiet:      false,\n  workoutJson: null,\n  dietHtml:    null,\n  generatedAt: \u0027\u0027,\n  status:      \u0027none\u0027,   // \u0027none\u0027 | \u0027pending\u0027 | \u0027ready\u0027\n  registeredAt: new Date().toISOString()\n};\n\nreturn [{ json: { success: true, clientId, name, email, phone } }];"
+                                     },
+                      "id":  "7db6d60e-231a-478d-a4ae-bbdad742da40",
+                      "name":  "Save Client",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       832
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "={{ JSON.stringify($json) }}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 },
+                                                                                                 {
+                                                                                                     "name":  "Content-Type",
+                                                                                                     "value":  "application/json"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "0660da1d-c6f0-40cd-b70d-9b1419d0d88e",
+                      "name":  "Respond Register",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       480,
+                                       832
+                                   ]
+                  }
+              ],
+    "connections":  {
+                        "Receive Plan":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Store Plan",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Store Plan":  {
+                                           "main":  [
+                                                        [
+                                                            {
+                                                                "node":  "Respond Store",
+                                                                "type":  "main",
+                                                                "index":  0
+                                                            }
+                                                        ]
+                                                    ]
+                                       },
+                        "Get Plan":  {
+                                         "main":  [
+                                                      [
+                                                          {
+                                                              "node":  "Lookup Plan",
+                                                              "type":  "main",
+                                                              "index":  0
+                                                          }
+                                                      ]
+                                                  ]
+                                     },
+                        "Lookup Plan":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Respond Get",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "Get Clients":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "List Clients",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        },
+                        "List Clients":  {
+                                             "main":  [
+                                                          [
+                                                              {
+                                                                  "node":  "Respond Clients",
+                                                                  "type":  "main",
+                                                                  "index":  0
+                                                              }
+                                                          ]
+                                                      ]
+                                         },
+                        "Verify Client":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Lookup Client",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Lookup Client":  {
+                                              "main":  [
+                                                           [
+                                                               {
+                                                                   "node":  "Respond Verify",
+                                                                   "type":  "main",
+                                                                   "index":  0
+                                                               }
+                                                           ]
+                                                       ]
+                                          },
+                        "Register Client":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Save Client",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Save Client":  {
+                                            "main":  [
+                                                         [
+                                                             {
+                                                                 "node":  "Respond Register",
+                                                                 "type":  "main",
+                                                                 "index":  0
+                                                             }
+                                                         ]
+                                                     ]
+                                        }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "availableInMCP":  true
+                 },
+    "staticData":  null,
+    "meta":  null,
+    "pinData":  {
+
+                },
+    "versionId":  "2f60f6a0-f307-4e7c-9324-315cf1a1f90b",
+    "activeVersionId":  null,
+    "versionCounter":  2,
+    "triggerCount":  0,
+    "shared":  [
+                   {
+                       "updatedAt":  "2026-04-01T14:32:39.883Z",
+                       "createdAt":  "2026-04-01T14:32:39.883Z",
+                       "role":  "workflow:owner",
+                       "workflowId":  "N7ujfqztm0xMe1Iu",
+                       "projectId":  "azIIK8SPhhWZoIA4",
+                       "project":  {
+                                       "updatedAt":  "2026-03-26T16:49:52.943Z",
+                                       "createdAt":  "2026-03-26T13:05:18.450Z",
+                                       "id":  "azIIK8SPhhWZoIA4",
+                                       "name":  "Airfit  Gym \u003cairfitofficial24@gmail.com\u003e",
+                                       "type":  "personal",
+                                       "icon":  null,
+                                       "description":  null,
+                                       "creatorId":  "bf985987-4aa6-4f16-9057-64373dd765b2"
+                                   }
+                   }
+               ],
+    "tags":  [
+
+             ],
+    "activeVersion":  null
+}

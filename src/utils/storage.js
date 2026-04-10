@@ -63,6 +63,18 @@ export const findClientById = (clientId) => {
   return clients.find(c => c.clientId === clientId);
 };
 
+export function deleteClient(clientId) {
+    const clients = getClients();
+    const filtered = clients.filter(c => c.clientId !== clientId);
+    localStorage.setItem('airfit_clients', JSON.stringify(filtered));
+    
+    const deleted = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
+    if (!deleted.includes(clientId)) {
+        deleted.push(clientId);
+        localStorage.setItem('deleted_clients', JSON.stringify(deleted));
+    }
+};
+
 // Alias used by App.jsx and ClientDashboard
 export const getClient = findClientByPhone;
 

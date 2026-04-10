@@ -1,6 +1,6 @@
 import React from 'react';
 
-export default function AdminClientTable({ clients, onViewPlan }) {
+export default function AdminClientTable({ clients, onViewPlan, onDeleteClient }) {
     if (!clients || clients.length === 0) {
         return (
             <div style={{ padding: '40px', textAlign: 'center', background: '#111', borderRadius: '12px', border: '1px dashed #333' }}>
@@ -41,7 +41,7 @@ export default function AdminClientTable({ clients, onViewPlan }) {
                             <td style={{ padding: '16px 20px', fontSize: '14px', color: '#ccc', fontFamily: 'monospace' }}>{c.phone}</td>
                             <td style={{ padding: '16px 20px', fontSize: '14px', color: '#888' }}>{c.email}</td>
                             <td style={{ padding: '16px 20px' }}>{getStatusBadge(c.planStatus)}</td>
-                            <td style={{ padding: '16px 20px', textAlign: 'right' }}>
+                            <td style={{ padding: '16px 20px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                                 {c.planStatus === 'ready' ? (
                                     <button
                                         onClick={() => onViewPlan(c)}
@@ -56,8 +56,21 @@ export default function AdminClientTable({ clients, onViewPlan }) {
                                         View Plan
                                     </button>
                                 ) : (
-                                    <span style={{ color: '#555', fontSize: '12px' }}>—</span>
+                                    <span style={{ color: '#555', fontSize: '12px', marginRight: '8px' }}>—</span>
                                 )}
+                                <button
+                                    onClick={() => onDeleteClient && onDeleteClient(c)}
+                                    style={{
+                                        background: '#1a1a1a', border: '1px solid #333', color: '#ef4444',
+                                        padding: '8px 12px', borderRadius: '6px', fontSize: '12px', fontWeight: '600',
+                                        cursor: 'pointer', transition: 'all 0.2s'
+                                    }}
+                                    onMouseOver={e => { e.currentTarget.style.borderColor = '#ef4444'; e.currentTarget.style.background = 'rgba(239, 68, 68, 0.1)'; }}
+                                    onMouseOut={e => { e.currentTarget.style.borderColor = '#333'; e.currentTarget.style.background = '#1a1a1a'; }}
+                                    title="Delete Client"
+                                >
+                                    Delete
+                                </button>
                             </td>
                         </tr>
                     ))}

@@ -1,0 +1,413 @@
+﻿{
+    "updatedAt":  "2026-04-09T05:46:15.849Z",
+    "createdAt":  "2026-04-01T14:32:21.924Z",
+    "id":  "maiz82IchPuO1an9",
+    "name":  "Airfit Gym — Plan Generator (Web App)",
+    "description":  null,
+    "active":  false,
+    "isArchived":  false,
+    "nodes":  [
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://airfitgym.app.n8n.cloud/webhook/airfit-plan-ready",
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ JSON.stringify($json) }}",
+                                         "options":  {
+                                                         "response":  {
+                                                                          "response":  {
+                                                                                           "neverError":  true
+                                                                                       }
+                                                                      }
+                                                     }
+                                     },
+                      "id":  "fc09fa40-57b2-4a88-a344-df55a55e9b04",
+                      "name":  "Save Plan to Store",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       2160,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const data      = $input.first().json;\nconst clientCtx = $(\u0027Build Gemini Prompt\u0027).first().json;\n\nconst clientId    = data.clientId    || clientCtx.clientId    || \u0027\u0027;\nconst clientName  = data.clientName  || clientCtx.clientName  || \u0027\u0027;\nconst clientEmail = data.clientEmail || clientCtx.clientEmail || \u0027\u0027;\nconst clientPhone = data.clientPhone || clientCtx.clientPhone || \u0027\u0027;\nconst planType    = data.planType    || clientCtx.planType    || \u0027\u0027;\nconst isDiet      = data.isDiet;\n\nreturn [{ json: {\n  clientId,\n  clientName,\n  clientEmail,\n  clientPhone,\n  planType,\n  isDiet,\n  workoutJson:  isDiet ? null : data.workoutJson,\n  dietHtml:     isDiet ? data.planHtml : null,\n  generatedAt:  new Date().toISOString()\n}}];"
+                                     },
+                      "id":  "e49cef3d-9975-41ce-ab05-545ce2b8517d",
+                      "name":  "Build Plan Response",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1920,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const allItems  = $input.all();\nconst base      = allItems[0].json;\nconst clientCtx = $(\u0027Build Gemini Prompt\u0027).first().json;\n\nif (!base.exerciseMode) {\n  return [{ json: {\n    ...base,\n    clientId:    clientCtx.clientId,\n    clientName:  clientCtx.clientName,\n    clientEmail: clientCtx.clientEmail,\n    clientPhone: clientCtx.clientPhone,\n    planType:    clientCtx.planType\n  }}];\n}\n\nconst wj = base.workoutJson;\nconst dayMap = new Map();\nfor (const item of allItems) {\n  const d = item.json;\n  if (!dayMap.has(d.day)) dayMap.set(d.day, { day: d.day, muscle: d.muscle, exercises: [] });\n  dayMap.get(d.day).exercises.push({\n    name: d.exerciseName, sets: d.sets, reps: d.reps,\n    setsReps: d.setsReps,\n    videoId: d.videoId, videoUrl: d.videoUrl,\n    videoTitle: d.videoTitle, channelName: d.channelName, thumb: d.thumb\n  });\n}\n\nconst enrichedDays = Array.from(dayMap.values());\nconst enrichedWorkoutJson = {\n  greeting:     wj ? wj.greeting     : \u0027\u0027,\n  overview:     wj ? wj.overview     : \u0027\u0027,\n  warmup:       wj ? wj.warmup       : [],\n  cooldown:     wj ? wj.cooldown     : [],\n  recoveryTips: wj ? wj.recoveryTips : [],\n  days: enrichedDays\n};\n\nreturn [{ json: {\n  isDiet:       false,\n  workoutJson:  enrichedWorkoutJson,\n  planHtml:     null,\n  clientId:     clientCtx.clientId,\n  clientName:   clientCtx.clientName,\n  clientEmail:  clientCtx.clientEmail,\n  clientPhone:  clientCtx.clientPhone,\n  planType:     clientCtx.planType\n}}];"
+                                     },
+                      "id":  "250de3e1-803b-48b2-883f-0b7e1fba8cac",
+                      "name":  "Rebuild Workout Plan",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1680,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const ytItems   = $input.all();\nconst exItems   = $(\u0027Extract Exercises\u0027).all();\nconst clientCtx = $(\u0027Build Gemini Prompt\u0027).first().json;\nconst output    = [];\n\nfor (let i = 0; i \u003c ytItems.length; i++) {\n  const ytResp = ytItems[i].json;\n  const exCtx  = exItems[i] ? exItems[i].json : {};\n\n  let videoId = null, videoUrl = null, videoTitle = null, channelName = null, thumb = null;\n  try {\n    const yt = ytResp.items \u0026\u0026 ytResp.items[0];\n    if (yt \u0026\u0026 yt.id \u0026\u0026 yt.id.videoId) {\n      videoId     = yt.id.videoId;\n      videoUrl    = \u0027https://www.youtube.com/watch?v=\u0027 + videoId;\n      videoTitle  = yt.snippet.title;\n      channelName = yt.snippet.channelTitle;\n      const t     = yt.snippet.thumbnails;\n      thumb       = (t.medium || t.default || {}).url || null;\n    }\n  } catch(e) {}\n\n  output.push({ json: {\n    exerciseMode: true,\n    exerciseName: exCtx.exerciseName || \u0027\u0027,\n    sets: exCtx.sets || \u00273\u0027, reps: exCtx.reps || \u002710\u0027,\n    setsReps: exCtx.setsReps || \u00273 x 10\u0027,\n    day: exCtx.day || \u0027\u0027, muscle: exCtx.muscle || \u0027\u0027,\n    videoId, videoUrl, videoTitle, channelName, thumb,\n    workoutJson: exCtx.workoutJson || null,\n    clientId:    clientCtx.clientId,\n    clientName:  clientCtx.clientName,\n    clientEmail: clientCtx.clientEmail,\n    clientPhone: clientCtx.clientPhone,\n    planType:    clientCtx.planType,\n    goal:        clientCtx.goal,\n    isDiet: false\n  }});\n}\nreturn output;"
+                                     },
+                      "id":  "b7a087a7-feff-498d-ac8a-ef2531a1da22",
+                      "name":  "Attach Exercise Video",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       1440,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "url":  "https://www.googleapis.com/youtube/v3/search",
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "part",
+                                                                                        "value":  "snippet"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "type",
+                                                                                        "value":  "video"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "videoDuration",
+                                                                                        "value":  "short"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "maxResults",
+                                                                                        "value":  "1"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "relevanceLanguage",
+                                                                                        "value":  "en"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "key",
+                                                                                        "value":  "AIzaSyAKNvkI_PT0ol4-nR0efbfR_pez7chQ3uA"
+                                                                                    },
+                                                                                    {
+                                                                                        "name":  "q",
+                                                                                        "value":  "={{ $json.ytQuery }}"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "36330eed-bd73-475e-870d-e339b2f71040",
+                      "name":  "Search Exercise Video",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       1200,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const data = $input.first().json;\n\nif (data.isDiet) {\n  return [{ json: { ...data, exerciseMode: false, ytQuery: null } }];\n}\n\nconst wj = data.workoutJson;\nif (!wj || !wj.days || !wj.days.length) {\n  return [{ json: { ...data, exerciseMode: false, ytQuery: null } }];\n}\n\nconst items = [];\nfor (const day of wj.days) {\n  for (const ex of (day.exercises || [])) {\n    const exName  = typeof ex === \u0027string\u0027 ? ex : (ex.name || \u0027\u0027);\n    const exSets  = ex.sets ? String(ex.sets) : \u00273\u0027;\n    const exReps  = ex.reps ? String(ex.reps) : \u002710\u0027;\n    items.push({ json: {\n      exerciseMode: true,\n      exerciseName: exName,\n      sets: exSets, reps: exReps,\n      setsReps: exSets + \u0027 x \u0027 + exReps,\n      day: day.day,\n      muscle: day.muscle || \u0027\u0027,\n      ytQuery: exName + \u0027 exercise proper form tutorial gym\u0027,\n      workoutJson: data.workoutJson,\n      clientId: data.clientId,\n      clientName: data.clientName,\n      clientEmail: data.clientEmail,\n      clientPhone: data.clientPhone,\n      planType: data.planType,\n      goal: data.goal,\n      isDiet: false\n    }});\n  }\n}\nreturn items;"
+                                     },
+                      "id":  "fab95fbd-30ea-493c-8349-992d3c147dab",
+                      "name":  "Extract Exercises",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       960,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const geminiResp = $input.first().json;\nconst prev = $(\u0027Build Gemini Prompt\u0027).first().json;\n\nlet rawText = geminiResp.candidates[0].content.parts[0].text;\nrawText = rawText\n  .replace(/^```json\\s*/i, \u0027\u0027)\n  .replace(/^```\\s*/i, \u0027\u0027)\n  .replace(/```\\s*$/i, \u0027\u0027)\n  .trim();\n\nif (prev.isDiet) {\n  return [{ json: {\n    isDiet: true, planHtml: rawText, workoutJson: null,\n    clientId: prev.clientId, clientName: prev.clientName,\n    clientEmail: prev.clientEmail, clientPhone: prev.clientPhone,\n    planType: prev.planType, goal: prev.goal\n  }}];\n}\n\nlet workoutJson = null;\ntry { workoutJson = JSON.parse(rawText); }\ncatch(e) {\n  const m = rawText.match(/\\{[\\s\\S]*\\}/);\n  if (m) { try { workoutJson = JSON.parse(m[0]); } catch(e2) {} }\n}\nreturn [{ json: {\n  isDiet: false, planHtml: null, workoutJson,\n  clientId: prev.clientId, clientName: prev.clientName,\n  clientEmail: prev.clientEmail, clientPhone: prev.clientPhone,\n  planType: prev.planType, goal: prev.goal\n}}];"
+                                     },
+                      "id":  "6ab08f2e-f96d-49aa-844c-df2cc73ac79c",
+                      "name":  "Route Plan Type",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       720,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "method":  "POST",
+                                         "url":  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
+                                         "sendQuery":  true,
+                                         "queryParameters":  {
+                                                                 "parameters":  [
+                                                                                    {
+                                                                                        "name":  "key",
+                                                                                        "value":  "AIzaSyBxSiqlPaFYdfsZ-QkrByGmkmaa7BPWEXA"
+                                                                                    }
+                                                                                ]
+                                                             },
+                                         "sendBody":  true,
+                                         "contentType":  "raw",
+                                         "rawContentType":  "application/json",
+                                         "body":  "={{ $json.geminiPayload }}",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "f35982a8-e4ba-4767-b39b-bc66217b4cc1",
+                      "name":  "Generate Plan with Gemini",
+                      "type":  "n8n-nodes-base.httpRequest",
+                      "typeVersion":  4.2,
+                      "position":  [
+                                       480,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "jsCode":  "const raw = $(\u0027Webhook Trigger\u0027).first().json;\nlet body;\nif (typeof raw.body === \u0027string\u0027) {\n  try { body = JSON.parse(raw.body); } catch(e) { body = raw.body; }\n} else {\n  body = raw.body || raw;\n}\n\nconst planType = body.planType || \u0027Workout Plan\u0027;\nconst isDiet   = planType.toLowerCase().includes(\u0027diet\u0027);\nlet prompt;\n\nif (isDiet) {\n  prompt = \u0027Expert fitness coach at Airfit Gym. Create personalised Diet Plan.\\n\\n\u0027\n    + \u0027CLIENT: \u0027 + body.name + \u0027 | \u0027 + body.gender + \u0027 | \u0027 + body.age + \u0027yrs | \u0027\n    + body.height + \u0027cm | \u0027 + body.weight + \u0027kg | Goal: \u0027 + body.goal + \u0027\\n\u0027\n    + \u0027Activity: \u0027 + body.activityLevel + \u0027 | Diet: \u0027 + body.dietPreference\n    + \u0027 | Food: \u0027 + body.foodCulture + \u0027 | Meals: \u0027 + body.mealsPerDay\n    + \u0027 | History: \u0027 + body.previousWorkout + \u0027 | Allergies: \u0027 + (body.allergies || \u0027None\u0027) + \u0027\\n\\n\u0027\n    + \u0027Create a concise DIET PLAN:\\n1. Daily calorie target and macros\\n\u0027\n    + \u00272. 7-day meal plan table (Day|Breakfast|Lunch|Dinner|Snacks)\\n\u0027\n    + \u00273. Pre/post workout meals\\n4. Hydration\\n5. Top 5 foods to avoid\\n6. 3 supplements\\n\u0027\n    + \u0027NO YouTube links.\\n\\nOUTPUT: raw HTML only, inline CSS, headings color:#ff6b00, \u0027\n    + \u0027tables border-collapse rows #1a1a1a/#222 text #e0e0e0, \u0027\n    + \u0027headers bg #ff6b00 white padding:10px, cells padding:10px border-bottom:1px solid #333. \u0027\n    + \u0027Start: \u003cp\u003eHi \u0027 + body.name + \u0027!\u003c/p\u003e\u0027;\n} else {\n  prompt = \u0027You are an expert fitness coach at Airfit Gym.\\n\\n\u0027\n    + \u0027CLIENT: \u0027 + body.name + \u0027 | \u0027 + body.gender + \u0027 | \u0027 + body.age + \u0027yrs | \u0027\n    + body.height + \u0027cm | \u0027 + body.weight + \u0027kg | Goal: \u0027 + body.goal + \u0027\\n\u0027\n    + \u0027Activity: \u0027 + body.activityLevel + \u0027 | History: \u0027 + (body.previousWorkout || \u0027Beginner\u0027) + \u0027\\n\u0027\n    + \u0027Gym Access: \u0027 + (body.gymAccess || \u0027Full Gym\u0027) + \u0027 | Focus: \u0027 + (body.focusArea || \u0027Full Body\u0027) + \u0027\\n\\n\u0027\n    + \u0027Return ONLY a valid JSON object. No markdown. No explanation. No code fences.\\n\\n\u0027\n    + \u0027Required format:\\n\u0027\n    + \u0027{\"greeting\":\"Hi \u0027 + body.name + \u0027! [motivating sentence]\",\u0027\n    + \u0027\"overview\":\"[2 sentence overview]\",\u0027\n    + \u0027\"days\":[{\"day\":\"Monday\",\"muscle\":\"Chest \u0026 Triceps\",\"exercises\":[\u0027\n    + \u0027{\"name\":\"Barbell Bench Press\",\"sets\":\"4\",\"reps\":\"8-10\"},\u0027\n    + \u0027{\"name\":\"Incline Dumbbell Press\",\"sets\":\"3\",\"reps\":\"10-12\"},\u0027\n    + \u0027{\"name\":\"Cable Fly\",\"sets\":\"3\",\"reps\":\"12-15\"},\u0027\n    + \u0027{\"name\":\"Triceps Pushdown\",\"sets\":\"3\",\"reps\":\"10-12\"},\u0027\n    + \u0027{\"name\":\"Overhead Triceps Extension\",\"sets\":\"3\",\"reps\":\"12\"}]}],\u0027\n    + \u0027\"warmup\":[\"5 min light cardio\",\"Arm circles\",\"Hip rotations\"],\u0027\n    + \u0027\"cooldown\":[\"Chest stretch 30s\",\"Triceps stretch 30s\",\"Deep breathing\"],\u0027\n    + \u0027\"recoveryTips\":[\"Sleep 7-9 hours\",\"Stay hydrated\",\"Foam roll sore muscles\"]}\\n\\n\u0027\n    + \u0027STRICT RULES:\\n\u0027\n    + \u0027- Exactly 6 workout days (Monday-Saturday). No Sunday.\\n\u0027\n    + \u0027- Exactly 5 exercises per day.\\n\u0027\n    + \u0027- Each exercise: \"name\", \"sets\", \"reps\" as strings.\\n\u0027\n    + \u0027- Output ONLY the JSON. Nothing else.\u0027;\n}\n\nreturn [{ json: {\n  geminiPayload: JSON.stringify({\n    contents: [{ parts: [{ text: prompt }] }],\n    generationConfig: { temperature: 0.7, maxOutputTokens: 4096 }\n  }),\n  clientId:    body.clientId   || \u0027\u0027,\n  clientName:  body.name       || \u0027\u0027,\n  clientEmail: body.email      || \u0027\u0027,\n  clientPhone: body.phone      || \u0027\u0027,\n  planType:    planType,\n  isDiet:      isDiet,\n  goal:        body.goal       || \u0027\u0027\n}}];"
+                                     },
+                      "id":  "e6c430da-cc09-4882-b836-b2e891a4ef7c",
+                      "name":  "Build Gemini Prompt",
+                      "type":  "n8n-nodes-base.code",
+                      "typeVersion":  2,
+                      "position":  [
+                                       240,
+                                       160
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "amount":  10,
+                                         "unit":  "seconds"
+                                     },
+                      "id":  "f37a2926-cc12-4eaa-b38c-588ee02d5dee",
+                      "name":  "Wait 60 Minutes",
+                      "type":  "n8n-nodes-base.wait",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       160
+                                   ],
+                      "webhookId":  "2cba8066-a4fb-4d33-9f8f-164e12a935ba"
+                  },
+                  {
+                      "parameters":  {
+                                         "respondWith":  "json",
+                                         "responseBody":  "{\"success\":true,\"message\":\"Plan is being generated!\"}",
+                                         "options":  {
+                                                         "responseHeaders":  {
+                                                                                 "entries":  [
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Origin",
+                                                                                                     "value":  "*"
+                                                                                                 },
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Methods",
+                                                                                                     "value":  "POST, OPTIONS"
+                                                                                                 },
+                                                                                                 {
+                                                                                                     "name":  "Access-Control-Allow-Headers",
+                                                                                                     "value":  "Content-Type"
+                                                                                                 }
+                                                                                             ]
+                                                                             }
+                                                     }
+                                     },
+                      "id":  "feeea07a-3732-4595-bec5-89aba9c48e20",
+                      "name":  "Respond to Webhook",
+                      "type":  "n8n-nodes-base.respondToWebhook",
+                      "typeVersion":  1,
+                      "position":  [
+                                       0,
+                                       0
+                                   ]
+                  },
+                  {
+                      "parameters":  {
+                                         "httpMethod":  "POST",
+                                         "path":  "airfit-gym-diet",
+                                         "responseMode":  "responseNode",
+                                         "options":  {
+
+                                                     }
+                                     },
+                      "id":  "0a453fb0-0d0e-4164-a1f2-77245bb37681",
+                      "name":  "Webhook Trigger",
+                      "type":  "n8n-nodes-base.webhook",
+                      "typeVersion":  2,
+                      "position":  [
+                                       -240,
+                                       160
+                                   ],
+                      "webhookId":  "airfit-gym-plan"
+                  }
+              ],
+    "connections":  {
+                        "Build Plan Response":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Save Plan to Store",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Rebuild Workout Plan":  {
+                                                     "main":  [
+                                                                  [
+                                                                      {
+                                                                          "node":  "Build Plan Response",
+                                                                          "type":  "main",
+                                                                          "index":  0
+                                                                      }
+                                                                  ]
+                                                              ]
+                                                 },
+                        "Attach Exercise Video":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Rebuild Workout Plan",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Search Exercise Video":  {
+                                                      "main":  [
+                                                                   [
+                                                                       {
+                                                                           "node":  "Attach Exercise Video",
+                                                                           "type":  "main",
+                                                                           "index":  0
+                                                                       }
+                                                                   ]
+                                                               ]
+                                                  },
+                        "Extract Exercises":  {
+                                                  "main":  [
+                                                               [
+                                                                   {
+                                                                       "node":  "Search Exercise Video",
+                                                                       "type":  "main",
+                                                                       "index":  0
+                                                                   }
+                                                               ]
+                                                           ]
+                                              },
+                        "Route Plan Type":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Extract Exercises",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Generate Plan with Gemini":  {
+                                                          "main":  [
+                                                                       [
+                                                                           {
+                                                                               "node":  "Route Plan Type",
+                                                                               "type":  "main",
+                                                                               "index":  0
+                                                                           }
+                                                                       ]
+                                                                   ]
+                                                      },
+                        "Build Gemini Prompt":  {
+                                                    "main":  [
+                                                                 [
+                                                                     {
+                                                                         "node":  "Generate Plan with Gemini",
+                                                                         "type":  "main",
+                                                                         "index":  0
+                                                                     }
+                                                                 ]
+                                                             ]
+                                                },
+                        "Wait 60 Minutes":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Build Gemini Prompt",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            },
+                        "Webhook Trigger":  {
+                                                "main":  [
+                                                             [
+                                                                 {
+                                                                     "node":  "Wait 60 Minutes",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 },
+                                                                 {
+                                                                     "node":  "Respond to Webhook",
+                                                                     "type":  "main",
+                                                                     "index":  0
+                                                                 }
+                                                             ]
+                                                         ]
+                                            }
+                    },
+    "settings":  {
+                     "executionOrder":  "v1",
+                     "binaryMode":  "separate",
+                     "availableInMCP":  true
+                 },
+    "staticData":  null,
+    "meta":  null,
+    "pinData":  {
+
+                },
+    "versionId":  "3a8cbc33-2f04-426b-b666-c7b668f7a77d",
+    "activeVersionId":  null,
+    "versionCounter":  3,
+    "triggerCount":  0,
+    "shared":  [
+                   {
+                       "updatedAt":  "2026-04-01T14:32:21.933Z",
+                       "createdAt":  "2026-04-01T14:32:21.933Z",
+                       "role":  "workflow:owner",
+                       "workflowId":  "maiz82IchPuO1an9",
+                       "projectId":  "azIIK8SPhhWZoIA4",
+                       "project":  {
+                                       "updatedAt":  "2026-03-26T16:49:52.943Z",
+                                       "createdAt":  "2026-03-26T13:05:18.450Z",
+                                       "id":  "azIIK8SPhhWZoIA4",
+                                       "name":  "Airfit  Gym \u003cairfitofficial24@gmail.com\u003e",
+                                       "type":  "personal",
+                                       "icon":  null,
+                                       "description":  null,
+                                       "creatorId":  "bf985987-4aa6-4f16-9057-64373dd765b2"
+                                   }
+                   }
+               ],
+    "tags":  [
+
+             ],
+    "activeVersion":  null
+}
