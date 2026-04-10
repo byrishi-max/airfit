@@ -1,4 +1,4 @@
-﻿{
+{
     "updatedAt":  "2026-04-09T05:46:15.849Z",
     "createdAt":  "2026-04-01T14:32:21.924Z",
     "id":  "maiz82IchPuO1an9",
@@ -10,7 +10,7 @@
                   {
                       "parameters":  {
                                          "method":  "POST",
-                                         "url":  "https://airfitgym.app.n8n.cloud/webhook/airfit-plan-ready",
+                                         "url":  "http://airfitplangen.duckdns.org/webhook/airfit-plan-ready",
                                          "sendBody":  true,
                                          "contentType":  "raw",
                                          "rawContentType":  "application/json",
