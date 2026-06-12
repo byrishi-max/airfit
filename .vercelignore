@@ -1,0 +1,8 @@
+.env
+.env.*
+!.env.example
+mcp-config.json
+netlify.toml
+AIRFIT_PROJECT_SUMMARY.md
+dev-server.*.log
+static-server.*.log
