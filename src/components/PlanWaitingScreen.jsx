@@ -31,7 +31,7 @@ export default function PlanWaitingScreen({ client }) {
             }} />
 
             <h2 style={{ color: '#FF5C1A', fontFamily: "'Sora', sans-serif", fontSize: '22px', fontWeight: '800', margin: '0 0 8px' }}>
-                🤖 Your AI Coach is Working...
+                🔧 Your Expert Plan is Being Prepared...
             </h2>
             <p style={{ color: '#888', fontSize: '14px', margin: '0 0 32px', lineHeight: '1.6' }}>
                 Crafting your personalized 6-day plan with YouTube tutorials for every exercise.

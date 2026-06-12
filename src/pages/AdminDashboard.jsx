@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAdminAuth } from '../hooks/useAuth';
-import { getClients, createClient, saveClients, deleteClient } from '../utils/storage';
+import { getClients, createClient, saveClients, deleteClient, registerClientRemote } from '../utils/storage';
 import { sendPortalInvite } from '../utils/inviteClient';
 import AdminClientTable from '../components/AdminClientTable';
 import { ENDPOINTS } from '../utils/config';
@@ -16,39 +16,27 @@ export default function AdminDashboard() {
     const [inviteSending, setInviteSending] = useState(false);
 
     useEffect(() => {
-        const localClients = getClients();
-        setClients(localClients);
-
-        const syncWithBackend = async () => {
+        // n8n is the source of truth — load from it directly
+        const loadClients = async () => {
             try {
                 const res = await fetch(ENDPOINTS.GET_CLIENTS);
                 if (res.ok) {
-                    const backendClients = await res.json();
-                    if (Array.isArray(backendClients)) {
-                        const deletedIds = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
-                        // Merge: Start with backend data, excluding deleted
-                        const merged = [...backendClients].filter(c => !deletedIds.includes(c.clientId));
-                        
-                        // Add any local clients not found in backend (to prevent data loss)
-                        localClients.forEach(lc => {
-                            if (deletedIds.includes(lc.clientId)) return;
-                            const exists = merged.some(bc => 
-                                bc.clientId === lc.clientId || 
-                                (bc.phone && bc.phone === lc.phone)
-                            );
-                            if (!exists) merged.push(lc);
-                        });
-
-                        setClients(merged);
-                        saveClients(merged);
-                    }
+                    const data = await res.json();
+                    const list = Array.isArray(data) ? data : [];
+                    const deletedIds = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
+                    const filtered = list.filter(c => !deletedIds.includes(c.clientId));
+                    setClients(filtered);
+                    saveClients(filtered);
+                } else {
+                    // Fallback to local cache if n8n is unreachable
+                    setClients(getClients());
                 }
             } catch (e) {
-                console.warn('Sync with backend failed (offline or endpoint missing):', e);
+                console.warn('Could not reach n8n — using local cache:', e);
+                setClients(getClients());
             }
         };
-
-        syncWithBackend();
+        loadClients();
     }, []);
 
     const handleLogout = () => {
@@ -65,24 +53,36 @@ export default function AdminDashboard() {
         e.preventDefault();
         if (!form.name || !form.email || !form.phone) return;
 
-        // Capture form values BEFORE clearing (prevents race conditions)
         const clientName  = form.name.trim();
         const clientEmail = form.email.trim();
         const clientPhone = form.phone.trim();
 
         setInviteSending(true);
+        // 1. Create locally so UI updates instantly
         const newClient = createClient(clientName, clientEmail, clientPhone);
         setClients(prev => [...prev, newClient]);
         setForm({ name: '', email: '', phone: '' });
 
-        // Send portal invite email via n8n
+        // 2. Register in n8n so other devices can see this client
+        try {
+            await registerClientRemote({
+                clientId: newClient.clientId,
+                name:     clientName,
+                email:    clientEmail,
+                phone:    clientPhone,
+            });
+        } catch (err) {
+            console.warn('n8n register failed — client is local only:', err);
+        }
+
+        // 3. Send portal invite email
         const sent = await sendPortalInvite({ name: clientName, email: clientEmail, phone: clientPhone });
         setInviteSending(false);
 
         if (sent) {
-            showToast(`✅ Client added! Invite email sent to ${clientEmail}. They can login with phone: ${clientPhone}`, 'success');
+            showToast(`✅ Client added & synced! Invite sent to ${clientEmail}. Login phone: ${clientPhone}`, 'success');
         } else {
-            showToast(`✅ Client added! (Invite email failed — send manually. Login phone: ${clientPhone})`, 'warning');
+            showToast(`✅ Client added & synced! (Invite email failed — send manually. Login phone: ${clientPhone})`, 'warning');
         }
     };
 

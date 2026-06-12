@@ -1,3 +1,5 @@
+import { ENDPOINTS } from './config';
+
 export const STORAGE_KEYS = {
   ADMIN_SESSION: 'airfit_admin_session',
   CLIENT_SESSION: 'airfit_client_session',
@@ -6,8 +8,21 @@ export const STORAGE_KEYS = {
   CALORIES: (clientId, date) => `airfit_calories_${clientId}_${date}`
 };
 
-export const getAdminSession = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.ADMIN_SESSION));
-export const getClientSession = () => JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENT_SESSION));
+// ─── Safe JSON parser — clears corrupted keys instead of crashing ──────────
+const safeRead = (key, fallback = null) => {
+  try {
+    const raw = localStorage.getItem(key);
+    if (raw === null || raw === undefined) return fallback;
+    return JSON.parse(raw);
+  } catch {
+    console.warn(`[storage] Clearing corrupted key: ${key}`);
+    localStorage.removeItem(key);
+    return fallback;
+  }
+};
+
+export const getAdminSession  = () => safeRead(STORAGE_KEYS.ADMIN_SESSION);
+export const getClientSession = () => safeRead(STORAGE_KEYS.CLIENT_SESSION);
 
 export const setAdminSession = (session) => localStorage.setItem(STORAGE_KEYS.ADMIN_SESSION, JSON.stringify(session));
 export const setClientSession = (session) => localStorage.setItem(STORAGE_KEYS.CLIENT_SESSION, JSON.stringify(session));
@@ -18,9 +33,7 @@ export const clearSessions = () => {
 };
 
 
-export const getClients = () => {
-  return JSON.parse(localStorage.getItem(STORAGE_KEYS.CLIENTS) || '[]');
-};
+export const getClients = () => safeRead(STORAGE_KEYS.CLIENTS, []);
 
 export const saveClient = (client) => {
   const clients = getClients();
@@ -53,14 +66,57 @@ export const createClient = (name, email, phone) => {
   return newClient;
 };
 
-export const findClientByPhone = (phone) => {
-  const clients = getClients();
-  return clients.find(c => c.phone === phone);
+// ─── Remote client lookup via n8n (cross-device) ──────────────────────────
+const normaliseClient = (data) => ({
+  clientId:    data.clientId,
+  name:        data.name,
+  email:       data.email,
+  phone:       data.phone,
+  planStatus:  data.planStatus || 'none',
+  workoutPlan: data.workoutJson || null,
+  dietPlan:    data.dietHtml   || null,
+  isDiet:      data.isDiet     || false,
+  generatedAt: data.generatedAt || '',
+});
+
+export const findClientByPhone = async (phone) => {
+  try {
+    const res = await fetch(
+      `${ENDPOINTS.VERIFY_CLIENT}?phone=${encodeURIComponent(phone)}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.found ? normaliseClient(data) : null;
+  } catch (err) {
+    console.error('[findClientByPhone] Network error:', err);
+    return null;
+  }
 };
 
-export const findClientById = (clientId) => {
-  const clients = getClients();
-  return clients.find(c => c.clientId === clientId);
+export const findClientById = async (clientId) => {
+  try {
+    const res = await fetch(
+      `${ENDPOINTS.VERIFY_CLIENT}?clientId=${encodeURIComponent(clientId)}`,
+      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+    );
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data.found ? normaliseClient(data) : null;
+  } catch (err) {
+    console.error('[findClientById] Network error:', err);
+    return null;
+  }
+};
+
+export const registerClientRemote = async ({ clientId, name, email, phone }) => {
+  const res = await fetch(ENDPOINTS.REGISTER_CLIENT, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ clientId, name, email, phone }),
+  });
+  if (!res.ok) throw new Error(`Register failed: ${res.status}`);
+  return res.json();
 };
 
 export function deleteClient(clientId) {
@@ -68,7 +124,7 @@ export function deleteClient(clientId) {
     const filtered = clients.filter(c => c.clientId !== clientId);
     localStorage.setItem('airfit_clients', JSON.stringify(filtered));
     
-    const deleted = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
+    const deleted = safeRead('deleted_clients', []);
     if (!deleted.includes(clientId)) {
         deleted.push(clientId);
         localStorage.setItem('deleted_clients', JSON.stringify(deleted));
@@ -104,7 +160,7 @@ export const updateClientStatus = (clientId, status, planData = null) => {
 export const logDailyCalories = (clientId, food, calories) => {
   const date = new Date().toISOString().split('T')[0];
   const key = STORAGE_KEYS.CALORIES(clientId, date);
-  const logs = JSON.parse(localStorage.getItem(key) || '[]');
+  const logs = safeRead(key, []);
   logs.push({ food, calories: Number(calories), time: new Date().toLocaleTimeString() });
   localStorage.setItem(key, JSON.stringify(logs));
 };
@@ -112,7 +168,7 @@ export const logDailyCalories = (clientId, food, calories) => {
 export const getDailyCalories = (clientId) => {
   const date = new Date().toISOString().split('T')[0];
   const key = STORAGE_KEYS.CALORIES(clientId, date);
-  return JSON.parse(localStorage.getItem(key) || '[]');
+  return safeRead(key, []);
 };
 
 export const getProgress = (clientId, week, day, exercise) => {

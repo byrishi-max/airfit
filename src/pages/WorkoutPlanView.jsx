@@ -10,6 +10,7 @@ import { useDayProgress } from '../hooks/useDayProgress';
 
 /* ── Background image URL (Unsplash – fitness / dark gym aesthetic) ── */
 const HERO_BG = '/gym-hero-bg.png';
+const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 /* ── Inline keyframes injected once ── */
 const KEYFRAMES = `
@@ -97,7 +98,6 @@ export default function WorkoutPlanView() {
         }
     }, []);
 
-    const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
     const days = useMemo(() => (workoutPlan?.days || []).map((d, index) => ({ 
         ...d, 
         day: STANDARD_DAYS[index] || normDay(d.day) 
@@ -108,7 +108,7 @@ export default function WorkoutPlanView() {
     const exercises = currentDayPlan?.exercises || [];
     
     // Call hook BEFORE early returns
-    const { completedCount, totalCount, percent, isCompleted, toggleComplete } = useDayProgress(client?.clientId, activeDay, exercises);
+    const { completedCount, totalCount, percent, isCompleted, toggleComplete, dayDone, markDayDone } = useDayProgress(client?.clientId, activeDay, exercises);
 
     const handleRegenerate = useCallback(() => {
         if (!client?.clientId) return;
@@ -131,7 +131,7 @@ export default function WorkoutPlanView() {
                     <div style={{ fontSize:56, marginBottom:16 }}>⚠️</div>
                     <h2 style={{ fontFamily:"'Sora',sans-serif", fontSize:22, fontWeight:700, marginBottom:10 }}>Plan Not Available</h2>
                     <p style={{ color:'#777', fontSize:14, lineHeight:1.6, marginBottom:28 }}>
-                        Your plan couldn't be loaded. The AI generation may have failed.
+                        Your plan couldn't be loaded. The plan generation may have failed.
                     </p>
                     <div style={{ display:'flex', gap:10, justifyContent:'center', flexWrap:'wrap' }}>
                         <button onClick={handleRegenerate} style={{
@@ -237,10 +237,10 @@ export default function WorkoutPlanView() {
                         background:'linear-gradient(135deg, #ffffff 0%, #e0d6cc 100%)',
                         WebkitBackgroundClip:'text', WebkitTextFillColor:'transparent',
                     }}>
-                        {workoutPlan.greeting || `Let's go, ${firstName}!`}
+                        {workoutPlan?.greeting || `Let's go, ${firstName}!`}
                     </h2>
                     <p style={{ color:'rgba(255,255,255,0.5)', fontSize:14, lineHeight:1.7, maxWidth:480 }}>
-                        {workoutPlan.overview || 'Here is your personalized training program.'}
+                        {workoutPlan?.overview || 'Here is your personalized training program.'}
                     </p>
 
                     {/* Motivational quote chip */}
@@ -383,6 +383,25 @@ export default function WorkoutPlanView() {
                                             />
                                         </div>
                                     ))}
+                                    {/* Day Done CTA */}
+                                    {totalCount > 0 && completedCount === totalCount && !dayDone && (
+                                        <div style={{ textAlign:'center', marginTop:24 }}>
+                                            <button onClick={markDayDone} style={{
+                                                padding:'12px 24px', borderRadius:10, border:'none', cursor:'pointer',
+                                                background:'linear-gradient(135deg,#22c55e,#16a34a)', color:'#fff',
+                                                fontWeight:800, letterSpacing:'1px', fontSize:14,
+                                                boxShadow:'0 10px 30px rgba(34,197,94,0.25)'
+                                            }}>
+                                                ✅ Mark Day as Done
+                                            </button>
+                                            <p style={{ color:'#777', fontSize:12, marginTop:8 }}>Great work! Your progress has been saved.</p>
+                                        </div>
+                                    )}
+                                    {dayDone && (
+                                        <div style={{ textAlign:'center', marginTop:16, color:'#22c55e', fontWeight:700, fontSize:12 }}>
+                                            ✅ Day completed
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         ) : (

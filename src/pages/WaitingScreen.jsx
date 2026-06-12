@@ -3,6 +3,15 @@ import { useNavigate } from 'react-router-dom';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
 
+const WAITING_TIPS = [
+    "Analyzing your equipment availability...",
+    "Calculated optimal volume for your goals...",
+    "Reviewing your injury history for safety...",
+    "Structuring progressive overload stages...",
+    "Finalizing your personalized macro split...",
+    "Optimizing exercise selection for hypertrophy..."
+];
+
 export default function WaitingScreen() {
     const { client } = useClientAuth();
     const navigate = useNavigate();
@@ -11,22 +20,13 @@ export default function WaitingScreen() {
     const [showRefresh, setShowRefresh] = useState(false);
     const [tipIndex, setTipIndex] = useState(0);
 
-    const tips = [
-        "Analyzing your equipment availability...",
-        "Calculated optimal volume for your goals...",
-        "Reviewing your injury history for safety...",
-        "Structuring progressive overload stages...",
-        "Finalizing your personalized macro split...",
-        "Optimizing exercise selection for hypertrophy..."
-    ];
-
     useEffect(() => {
         const dotInterval = setInterval(() => {
             setDots(prev => (prev.length >= 3 ? '' : prev + '.'));
         }, 800);
         
         const tipInterval = setInterval(() => {
-            setTipIndex(prev => (prev + 1) % tips.length);
+            setTipIndex(prev => (prev + 1) % WAITING_TIPS.length);
         }, 4000);
         
         const refreshTimer = setTimeout(() => {
@@ -108,7 +108,7 @@ export default function WaitingScreen() {
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         fontSize: '32px', color: '#000000', fontWeight: '900'
                     }}>
-                        AI
+                        PRO
                     </div>
                 </div>
 
@@ -120,6 +120,19 @@ export default function WaitingScreen() {
                 }}>
                     {isLoading ? 'Checking Server...' : `Curating Your Plan${dots}`}
                 </h2>
+                <div style={{
+                    background: 'rgba(34,197,94,0.08)',
+                    border: '1px solid rgba(34,197,94,0.25)',
+                    color: '#a7f3d0',
+                    padding: '12px 16px',
+                    borderRadius: '10px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    margin: '0 auto 18px',
+                    maxWidth: 480
+                }}>
+                    You can exit now — your plan will be emailed to <span style={{ color: '#34d399' }}>{client?.email || 'your registered email'}</span> when it’s ready.
+                </div>
                 
                 <div style={{ 
                     height: '24px', 
@@ -129,7 +142,7 @@ export default function WaitingScreen() {
                     fontWeight: '600',
                     transition: 'all 0.5s ease'
                 }}>
-                    {tips[tipIndex]}
+                    {WAITING_TIPS[tipIndex]}
                 </div>
 
                 {/* Progress Bar Container */}
@@ -150,6 +163,38 @@ export default function WaitingScreen() {
                         background: 'linear-gradient(90deg, transparent, #FF6B00, transparent)',
                         animation: isLoading ? 'progress-shimmer 0.8s infinite linear' : 'progress-shimmer 2s infinite linear'
                     }}></div>
+                </div>
+                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '18px' }}>
+                    <button
+                        onClick={() => navigate('/client/dashboard')}
+                        style={{
+                            background: 'rgba(255,255,255,0.06)',
+                            border: '1px solid rgba(255,255,255,0.12)',
+                            color: '#ddd',
+                            padding: '10px 18px',
+                            borderRadius: '10px',
+                            fontSize: '13px',
+                            fontWeight: 700,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        ← Back to Dashboard
+                    </button>
+                    <button
+                        onClick={() => navigate('/client/login')}
+                        style={{
+                            background: 'linear-gradient(135deg, #FF6B00 0%, #ff4500 100%)',
+                            border: 'none',
+                            color: '#fff',
+                            padding: '10px 18px',
+                            borderRadius: '10px',
+                            fontSize: '13px',
+                            fontWeight: 800,
+                            cursor: 'pointer'
+                        }}
+                    >
+                        Exit Now
+                    </button>
                 </div>
 
                 {showRefresh && (
@@ -173,7 +218,7 @@ export default function WaitingScreen() {
                             {isLoading ? 'Syncing...' : 'Check Status Now'}
                         </button>
                         <p style={{ marginTop: '16px', color: '#666', fontSize: '13px', maxWidth: '300px', margin: '16px auto 0' }}>
-                            If it takes more than 1 minute, the AI might be experiencing high load. Try refreshing the page.
+                            If it takes more than 1 minute, our coaches may still be refining your plan. Try refreshing the page.
                         </p>
                     </div>
                 )}

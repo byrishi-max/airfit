@@ -19,7 +19,7 @@ export default function ClientDashboard() {
         } else if (planStatus === 'pending') {
             navigate('/client/waiting');
         }
-    }, [planStatus, navigate]);
+    }, [client?.workoutPlan, client?.dietPlan, planStatus, navigate]);
 
     const handleLogout = () => {
         logout();
@@ -55,8 +55,8 @@ export default function ClientDashboard() {
             <div style={{
                 position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)',
                 width: '100vw', maxWidth: '800px', height: '100vh',
-                backgroundImage: 'url("/assets/images/bodybuilder_orange_bg.png")',
-                backgroundSize: 'contain', backgroundPosition: 'bottom center', backgroundRepeat: 'no-referrer',
+                backgroundImage: 'url("/gym-hero-bg.png")',
+                backgroundSize: 'cover', backgroundPosition: 'center bottom', backgroundRepeat: 'no-repeat',
                 mixBlendMode: 'lighten', zIndex: 3, pointerEvents: 'none',
                 /* Optional fade out at bottom to blend smoothly */
                 WebkitMaskImage: 'linear-gradient(to top, rgba(0,0,0,0) 0%, rgba(0,0,0,1) 20%)',
@@ -164,7 +164,7 @@ export default function ClientDashboard() {
                         </h1>
                     </div>
                     <p style={{ color: '#cccccc', fontWeight: '400', fontSize: '16px', marginBottom: '48px', textShadow: '0 2px 10px rgba(0,0,0,0.8)' }}>
-                        Select a path below to generate your personalized AI fitness plan.
+                        Select a path below to generate your personalized training plan.
                     </p>
 
                     <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '24px', maxWidth: '800px', width: '100%', margin: '0 auto', boxShadow: '0 0 80px rgba(255,107,0,0.04)', borderRadius: '16px' }}>

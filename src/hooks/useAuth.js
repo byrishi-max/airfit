@@ -14,14 +14,20 @@ export const useAuth = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const adminSession = getAdminSession();
-    const clientSession = getClientSession();
-    if (adminSession) setAdmin(adminSession);
-    if (clientSession) setClient(clientSession);
-    setLoading(false);
+    try {
+      const adminSession = getAdminSession();
+      const clientSession = getClientSession();
+      if (adminSession) setAdmin(adminSession);
+      if (clientSession) setClient(clientSession);
+    } catch (e) {
+      console.warn('[useAuth] Session restore failed — clearing sessions:', e);
+      clearSessions();
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  // Single-arg login used by AdminLogin.jsx: login(password)
+  // Admin login (password only)
   const login = (password) => {
     const allowed = process.env.REACT_APP_ADMIN_PASSWORD || 'airfitadmin2026';
     if (password === allowed) {
@@ -33,7 +39,7 @@ export const useAuth = () => {
     return false;
   };
 
-  // Two-arg login kept for backwards compatibility
+  // Two-arg admin login (legacy)
   const loginAdmin = (username, password) => {
     if (username === 'ADMIN' && password === 'AIRFIT2025') {
       const session = { username, role: 'admin' };
@@ -44,14 +50,29 @@ export const useAuth = () => {
     return false;
   };
 
-  const loginClient = (phone) => {
-    const foundClient = findClientByPhone(phone);
-    if (foundClient) {
+  /**
+   * loginByPhone — async, looks up client in n8n (cross-device).
+   * Returns { success: true, client } or { success: false, error: string }
+   */
+  const loginByPhone = async (phone) => {
+    try {
+      const foundClient = await findClientByPhone(phone);
+      if (!foundClient) {
+        return { success: false, error: 'Client not found. Please contact your trainer.' };
+      }
       setClientSession(foundClient);
       setClient(foundClient);
-      return true;
+      return { success: true, client: foundClient };
+    } catch (err) {
+      console.error('[loginByPhone] error:', err);
+      return { success: false, error: 'Connection error. Please try again.' };
     }
-    return false;
+  };
+
+  // Legacy sync alias — now delegates to async loginByPhone
+  const loginClient = async (phone) => {
+    const result = await loginByPhone(phone);
+    return result.success;
   };
 
   const logout = () => {
@@ -60,8 +81,9 @@ export const useAuth = () => {
     setClient(null);
   };
 
-  return { admin, client, loading, login, loginAdmin, loginClient, logout };
+  return { admin, client, loading, login, loginAdmin, loginClient, loginByPhone, logout };
 };
 
 export const useClientAuth = useAuth;
 export const useAdminAuth = useAuth;
+

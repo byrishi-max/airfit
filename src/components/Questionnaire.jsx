@@ -27,9 +27,9 @@ const DIET_QUESTIONS = [
 const WORKOUT_QUESTIONS = [
     { key: "goal", label: "Training Goal", type: "select", options: ["Build Muscle", "Lose Fat", "Increase Strength", "Improve Endurance", "Athletic Performance", "General Fitness"] },
     { key: "activityLevel", label: "Current Fitness", type: "select", options: ["Complete Beginner", "Some Experience (< 6 months)", "Intermediate (6–18 months)", "Advanced (2+ years)"] },
-    { key: "gymAccess", label: "Gym Access", type: "select", options: ["Full Gym (all equipment)", "Home Gym (dumbbells/barbell)", "Bodyweight Only", "Resistance Bands"] },
+    { key: "gymAccess", label: "Gym Access", type: "select", options: ["Full Gym (all equipment)", "Bodyweight Only"] },
     { key: "daysPerWeek", label: "Days Available", type: "select", options: ["3 days", "4 days", "5 days", "6 days"] },
-    { key: "sessionLength", label: "Session Duration", type: "select", options: ["30–45 min", "45–60 min", "60–75 min", "75–90 min"] },
+    { key: "sessionLength", label: "Session Duration", type: "select", options: ["30–45 min", "45–60 min"] },
     { key: "injuries", label: "Injuries / Limitations", type: "text", placeholder: "e.g. knee pain, lower back issue...", optional: true },
     { key: "previousWorkout", label: "Previous Training", type: "select", options: ["Never trained", "Trained before, stopped 3 months ago", "Trained before, stopped 6+ months ago", "Currently training but inconsistent"] },
     { key: "focusArea", label: "Focus Area", type: "select", options: ["Full Body", "Upper Body", "Lower Body", "Core & Abs", "No Preference"] },
@@ -104,10 +104,15 @@ function Questionnaire({ planType, client, onCancel }) {
 
     const submit = async () => {
         setLoading(true);
+        const headers = { "Content-Type": "application/json" };
+        if (process.env.REACT_APP_API_TOKEN) {
+            headers.Authorization = `Bearer ${process.env.REACT_APP_API_TOKEN}`;
+        }
+
         try {
             await fetch(ENDPOINTS.SUBMIT_PLAN, {
                 method: "POST",
-                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${process.env.REACT_APP_API_TOKEN}` },
+                headers,
                 body: JSON.stringify(form),
             });
         } catch (e) {

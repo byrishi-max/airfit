@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { ENDPOINTS } from '../utils/config';
 
 /**
@@ -27,47 +27,13 @@ export function useClientPlan(clientId) {
     const [workoutPlan, setWorkoutPlan] = useState(null);
     const [dietPlan, setDietPlan] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
+    const isLoadingRef = useRef(false);
+    const checkPlanRef = useRef(null);
+    const planStatusRef = useRef(planStatus);
 
-    // Initial load and sync when clientId changes
     useEffect(() => {
-        if (!clientId) {
-            setPlanStatus('none');
-            setWorkoutPlan(null);
-            setDietPlan(null);
-            return;
-        }
-
-        const syncLocalAndRemote = async () => {
-            try {
-                const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
-                const client = clients.find(c => c.clientId === clientId);
-                
-                if (client) {
-                    setPlanStatus(client.planStatus || 'none');
-                    setWorkoutPlan(parseWorkout(client.workoutPlan));
-                    setDietPlan(client.dietPlan || null);
-                    console.log(`[AirFit] useClientPlan sync for ${clientId}:`, client.planStatus);
-                    
-                    // PROACTIVE SYNC: If local says none, check the server once
-                    if (!client.planStatus || client.planStatus === 'none') {
-                        console.log('[AirFit] Plan "none" locally, checking server for updates...');
-                        await checkPlan();
-                    }
-                } else {
-                    // Not in local storage at all? Try server
-                    setPlanStatus('none');
-                    setWorkoutPlan(null);
-                    setDietPlan(null);
-                    console.log('[AirFit] Client not in local storage, checking server...');
-                    await checkPlan();
-                }
-            } catch (e) {
-                console.error('Failed to sync plan status:', e);
-            }
-        };
-
-        syncLocalAndRemote();
-    }, [clientId]); // Removed checkPlan from dependencies to avoid loop, we'll use a ref or separate check
+        planStatusRef.current = planStatus;
+    }, [planStatus]);
 
     const savePlanToStorage = useCallback((data) => {
         const parsed = parseWorkout(data.workoutJson);
@@ -93,8 +59,9 @@ export function useClientPlan(clientId) {
     }, [clientId]);
 
     const checkPlan = useCallback(async () => {
-        if (!clientId || isLoading) return false;
+        if (!clientId || isLoadingRef.current) return false;
         
+        isLoadingRef.current = true;
         setIsLoading(true);
         try {
             console.log('Checking status for client:', clientId);
@@ -102,10 +69,12 @@ export function useClientPlan(clientId) {
             if (!response.ok) {
                 if (response.status === 404) {
                     console.log('[AirFit] Plan not ready yet (404)');
+                    // Keep "pending" while backend is still processing
+                    if (planStatusRef.current !== 'pending') setPlanStatus('not_started');
                 } else {
                     console.warn(`[AirFit] API returned ${response.status}`);
+                    setPlanStatus('not_started');
                 }
-                setPlanStatus('not_started'); // Set status if API call fails or 404
                 return false;
             }
             
@@ -132,35 +101,87 @@ export function useClientPlan(clientId) {
         } catch (e) {
             console.warn('[AirFit] Poll error:', e);
         } finally {
+            isLoadingRef.current = false;
             setIsLoading(false);
         }
         return false;
-    }, [clientId, savePlanToStorage, isLoading]);
+    }, [clientId, savePlanToStorage]);
+
+    // Keep checkPlanRef up to date
+    useEffect(() => {
+        checkPlanRef.current = checkPlan;
+    }, [checkPlan]);
+
+    // Initial load and sync when clientId changes
+    useEffect(() => {
+        if (!clientId) {
+            setPlanStatus('none');
+            setWorkoutPlan(null);
+            setDietPlan(null);
+            return;
+        }
+
+        const syncLocalAndRemote = async () => {
+            try {
+                const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
+                const client = clients.find(c => c.clientId === clientId);
+
+                if (client) {
+                    setPlanStatus(client.planStatus || 'none');
+                    setWorkoutPlan(parseWorkout(client.workoutPlan));
+                    setDietPlan(client.dietPlan || null);
+                    console.log(`[AirFit] useClientPlan sync for ${clientId}:`, client.planStatus);
+
+                    // If local says none, check the server once for cross-device updates.
+                    if (!client.planStatus || client.planStatus === 'none') {
+                        console.log('[AirFit] Plan "none" locally, checking server for updates...');
+                        await checkPlanRef.current?.();
+                    }
+                } else {
+                    setPlanStatus('none');
+                    setWorkoutPlan(null);
+                    setDietPlan(null);
+                    console.log('[AirFit] Client not in local storage, checking server...');
+                    await checkPlanRef.current?.();
+                }
+            } catch (e) {
+                console.error('Failed to sync plan status:', e);
+            }
+        };
+
+        syncLocalAndRemote();
+    }, [clientId]);
 
     // Polling logic
     useEffect(() => {
         if (!clientId || planStatus !== 'pending') return;
 
         console.log('[AirFit] Starting polling for', clientId);
-        
-        // Initial check
-        const initialCheck = async () => {
-            const ready = await checkPlan();
-            if (ready) return;
-        };
-        initialCheck();
+        let stopped = false;
 
-        // Faster polling for better UX (5 seconds instead of 15)
+        // Initial check after short delay
+        const timeout = setTimeout(async () => {
+            if (stopped) return;
+            const ready = checkPlanRef.current && await checkPlanRef.current();
+            if (ready) return;
+        }, 1000);
+
+        // Poll every 5 seconds using ref to avoid stale closures
         const interval = setInterval(async () => {
-            const ready = await checkPlan();
+            if (stopped) return;
+            const ready = checkPlanRef.current && await checkPlanRef.current();
             if (ready) {
                 console.log('[AirFit] Plan found! Stopping polling.');
                 clearInterval(interval);
             }
         }, 5000);
 
-        return () => clearInterval(interval);
-    }, [clientId, planStatus]); // checkPlan intentionally omitted from deps to avoid re-triggering polling on every checkPlan update (which updates isLoading)
+        return () => {
+            stopped = true;
+            clearTimeout(timeout);
+            clearInterval(interval);
+        };
+    }, [clientId, planStatus]);
 
     const markPending = useCallback(() => {
         if (!clientId) return;
