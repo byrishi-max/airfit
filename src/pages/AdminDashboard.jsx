@@ -1,10 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAdminAuth } from '../hooks/useAuth';
-import { getClients, createClient, saveClients, deleteClient, registerClientRemote } from '../utils/storage';
-import { sendPortalInvite } from '../utils/inviteClient';
 import AdminClientTable from '../components/AdminClientTable';
-import { ENDPOINTS } from '../utils/config';
+import { useAdminAuth } from '../hooks/useAuth';
+import { createClientRecord, deleteClientRecord, listClients } from '../utils/clientRepository';
+import { sendPortalInvite } from '../utils/inviteClient';
+import { deleteClient } from '../utils/storage';
 
 export default function AdminDashboard() {
     const { logout } = useAdminAuth();
@@ -16,28 +16,19 @@ export default function AdminDashboard() {
     const [inviteSending, setInviteSending] = useState(false);
 
     useEffect(() => {
-        // n8n is the source of truth — load from it directly
-        const loadClients = async () => {
-            try {
-                const res = await fetch(ENDPOINTS.GET_CLIENTS);
-                if (res.ok) {
-                    const data = await res.json();
-                    const list = Array.isArray(data) ? data : [];
-                    const deletedIds = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
-                    const filtered = list.filter(c => !deletedIds.includes(c.clientId));
-                    setClients(filtered);
-                    saveClients(filtered);
-                } else {
-                    // Fallback to local cache if n8n is unreachable
-                    setClients(getClients());
-                }
-            } catch (e) {
-                console.warn('Could not reach n8n — using local cache:', e);
-                setClients(getClients());
-            }
-        };
         loadClients();
     }, []);
+
+    const loadClients = async () => {
+        try {
+            const list = await listClients();
+            const deletedIds = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
+            setClients(list.filter(c => !deletedIds.includes(c.clientId)));
+        } catch (error) {
+            console.warn('Could not load clients:', error);
+            setClients([]);
+        }
+    };
 
     const handleLogout = () => {
         logout();
@@ -53,49 +44,52 @@ export default function AdminDashboard() {
         e.preventDefault();
         if (!form.name || !form.email || !form.phone) return;
 
-        const clientName  = form.name.trim();
-        const clientEmail = form.email.trim();
+        const clientName = form.name.trim();
+        const clientEmail = form.email.trim().toLowerCase();
         const clientPhone = form.phone.trim();
 
         setInviteSending(true);
-        // 1. Create locally so UI updates instantly
-        const newClient = createClient(clientName, clientEmail, clientPhone);
+        let newClient;
+
+        try {
+            newClient = await createClientRecord({
+                name: clientName,
+                email: clientEmail,
+                phone: clientPhone,
+            });
+        } catch (error) {
+            setInviteSending(false);
+            showToast(error.message || 'Could not add client. Please try again.', 'warning');
+            return;
+        }
+
         setClients(prev => [...prev, newClient]);
         setForm({ name: '', email: '', phone: '' });
 
-        // 2. Register in n8n so other devices can see this client
-        try {
-            await registerClientRemote({
-                clientId: newClient.clientId,
-                name:     clientName,
-                email:    clientEmail,
-                phone:    clientPhone,
-            });
-        } catch (err) {
-            console.warn('n8n register failed — client is local only:', err);
-        }
-
-        // 3. Send portal invite email
         const sent = await sendPortalInvite({ name: clientName, email: clientEmail, phone: clientPhone });
         setInviteSending(false);
 
         if (sent) {
-            showToast(`✅ Client added & synced! Invite sent to ${clientEmail}. Login phone: ${clientPhone}`, 'success');
+            showToast(`Client added. Invite sent to ${clientEmail}. Login phone: ${clientPhone}`, 'success');
         } else {
-            showToast(`✅ Client added & synced! (Invite email failed — send manually. Login phone: ${clientPhone})`, 'warning');
+            showToast(`Client added. Invite email failed; send manually. Login phone: ${clientPhone}`, 'warning');
         }
     };
 
-    const handleDeleteClient = (client) => {
+    const handleDeleteClient = async (client) => {
         if (!window.confirm(`Are you sure you want to delete ${client.name}?`)) return;
+        try {
+            await deleteClientRecord(client.clientId);
+        } catch (error) {
+            console.warn('Remote delete failed, removing local cache only:', error);
+        }
         deleteClient(client.clientId);
         setClients(prev => prev.filter(c => c.clientId !== client.clientId));
-        showToast(`🗑️ Deleted client ${client.name}`, 'success');
+        showToast(`Deleted client ${client.name}`, 'success');
     };
 
     return (
         <div style={{ minHeight: '100vh', background: '#080808' }}>
-            {/* Header */}
             <header style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 padding: '20px 40px', borderBottom: '1px solid #1a1a1a', background: '#111'
@@ -114,7 +108,6 @@ export default function AdminDashboard() {
             </header>
 
             <main style={{ padding: '40px', maxWidth: '1200px', margin: '0 auto' }}>
-                {/* Toast */}
                 {toast.msg && (
                     <div style={{
                         background: toast.type === 'warning' ? 'rgba(234,179,8,0.1)' : 'rgba(34,197,94,0.1)',
@@ -127,8 +120,6 @@ export default function AdminDashboard() {
                 )}
 
                 <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 350px) 1fr', gap: '40px', alignItems: 'start' }}>
-
-                    {/* Add Client Panel */}
                     <div style={{ background: '#111', padding: '24px', borderRadius: '16px', border: '1px solid #1a1a1a' }}>
                         <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '6px', color: '#fff' }}>Add New Client</h2>
                         <p style={{ color: '#555', fontSize: '12px', marginBottom: '24px' }}>Client will receive a portal invite email with their login link.</p>
@@ -151,12 +142,11 @@ export default function AdminDashboard() {
                                 marginTop: '8px', padding: '14px', background: inviteSending ? '#2a2a2a' : '#FF5C1A',
                                 color: inviteSending ? '#666' : '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: inviteSending ? 'not-allowed' : 'pointer'
                             }}>
-                                {inviteSending ? 'Sending Invite...' : '+ Add Client & Send Invite'}
+                                {inviteSending ? 'Saving...' : '+ Add Client & Send Invite'}
                             </button>
                         </form>
                     </div>
 
-                    {/* Client List */}
                     <div>
                         <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', color: '#fff' }}>
                             Clients Directory
@@ -167,7 +157,6 @@ export default function AdminDashboard() {
                 </div>
             </main>
 
-            {/* Plan Modal */}
             {selectedClient && (
                 <div style={{
                     position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', zIndex: 100,
@@ -183,7 +172,7 @@ export default function AdminDashboard() {
                                 <h3 style={{ margin: 0, fontSize: '18px', color: '#fff' }}>{selectedClient.name}'s Plan</h3>
                                 <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#888' }}>{selectedClient.planType || 'Workout Plan'}</p>
                             </div>
-                            <button onClick={() => setSelectedClient(null)} style={{ background: '#2a2a2a', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px' }}>✕</button>
+                            <button onClick={() => setSelectedClient(null)} style={{ background: '#2a2a2a', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px' }}>x</button>
                         </div>
                         <div style={{ padding: '24px', overflowY: 'auto', flex: 1, color: '#ccc', lineHeight: '1.6' }}>
                             {selectedClient.workoutPlan ? (
@@ -192,17 +181,17 @@ export default function AdminDashboard() {
                                     <p style={{ color: '#888' }}>{selectedClient.workoutPlan.overview}</p>
                                     {selectedClient.workoutPlan.days?.map((d, i) => (
                                         <div key={i} style={{ marginBottom: '16px', background: '#1a1a1a', padding: '12px', borderRadius: '8px' }}>
-                                            <strong style={{ color: '#fff' }}>{d.day} — {d.muscle}</strong>
+                                            <strong style={{ color: '#fff' }}>{d.day} - {d.muscle}</strong>
                                             <ul style={{ margin: '8px 0 0', color: '#888', paddingLeft: '20px' }}>
                                                 {d.exercises?.map((ex, j) => (
-                                                    <li key={j}>{ex.name} — {ex.sets} sets × {ex.reps} reps</li>
+                                                    <li key={j}>{ex.name} - {ex.sets} sets x {ex.reps} reps</li>
                                                 ))}
                                             </ul>
                                         </div>
                                     ))}
                                 </div>
-                            ) : selectedClient.dietHtml ? (
-                                <div dangerouslySetInnerHTML={{ __html: selectedClient.dietHtml }} />
+                            ) : selectedClient.dietPlan ? (
+                                <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan }} />
                             ) : (
                                 <p>No plan data available yet.</p>
                             )}

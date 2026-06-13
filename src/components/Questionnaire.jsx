@@ -119,7 +119,7 @@ function Questionnaire({ planType, client, onCancel }) {
             // Log the error but continue; the UI will still navigate to the waiting screen
             console.warn('Failed to submit plan:', e);
         }
-        markPending();
+        markPending(planType);
         setLoading(false);
         navigate('/client/waiting');
     };

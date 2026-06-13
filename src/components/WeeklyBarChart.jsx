@@ -1,10 +1,27 @@
-import React, { useMemo } from 'react';
-import { getProgress } from '../utils/storage';
+import React, { useEffect, useMemo, useState } from 'react';
+import { getLocalExerciseCompleted, getWeeklyProgress } from '../utils/progressRepository';
 
 const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
 export default function WeeklyChart({ clientId, weekNumber, workoutJson }) {
     const today = new Date().toLocaleDateString('en-US', { weekday: 'long' });
+    const [remoteProgress, setRemoteProgress] = useState(null);
+
+    useEffect(() => {
+        let cancelled = false;
+        async function loadProgress() {
+            if (!clientId) return;
+            const progress = await getWeeklyProgress(clientId, weekNumber).catch(error => {
+                console.warn('[AirFit] Failed to load weekly progress:', error);
+                return null;
+            });
+            if (!cancelled) setRemoteProgress(progress);
+        }
+        loadProgress();
+        return () => {
+            cancelled = true;
+        };
+    }, [clientId, weekNumber]);
 
     const data = useMemo(() => {
         if (!workoutJson || !workoutJson.days) return [];
@@ -24,12 +41,21 @@ export default function WeeklyChart({ clientId, weekNumber, workoutJson }) {
             const exs = dayPlan?.exercises || [];
             if (exs.length === 0) return { name: dayName, total: 0, done: 0, percent: 0, isRest: true };
 
-            const done = exs.filter(ex => getProgress(clientId, weekNumber, dayName, ex.name)).length;
+            const done = exs.filter(ex => {
+                if (remoteProgress?.exercises) {
+                    return remoteProgress.exercises.some(row =>
+                        row.day_name === dayName &&
+                        row.exercise_name === ex.name &&
+                        row.completed
+                    );
+                }
+                return getLocalExerciseCompleted(clientId, weekNumber, dayName, ex.name);
+            }).length;
             const percent = Math.round((done / exs.length) * 100);
 
             return { name: dayName, total: exs.length, done, percent, isRest: false };
         });
-    }, [clientId, weekNumber, workoutJson]);
+    }, [clientId, weekNumber, workoutJson, remoteProgress]);
 
     const totalDone = data.reduce((a, b) => a + b.done, 0);
     const totalExs = data.reduce((a, b) => a + b.total, 0);

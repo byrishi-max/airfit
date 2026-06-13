@@ -6,6 +6,7 @@ import DayTabs from '../components/DayTabs';
 import ExerciseCard from '../components/ExerciseCard';
 import ProgressBar from '../components/ProgressBar';
 import CalorieTracker from '../components/CalorieTracker';
+import Questionnaire from '../components/Questionnaire';
 import { useDayProgress } from '../hooks/useDayProgress';
 
 /* ── Background image URL (Unsplash – fitness / dark gym aesthetic) ── */
@@ -60,7 +61,7 @@ const QUOTES = [
 ];
 
 export default function WorkoutPlanView() {
-    const { client } = useClientAuth();
+    const { client, logout } = useClientAuth();
     const { workoutPlan: rawPlan, dietPlan: rawDiet } = useClientPlan(client?.clientId);
     const navigate = useNavigate();
 
@@ -68,6 +69,7 @@ export default function WorkoutPlanView() {
     const [week, setWeek]              = useState(1);
     const [activeDay, setActiveDay]    = useState('Monday');
     const [scrolled, setScrolled]      = useState(false);
+    const [activeGenerator, setActiveGenerator] = useState(null);
 
     // Random motivational quote (stable per session)
     const quote = useMemo(() => QUOTES[Math.floor(Math.random() * QUOTES.length)], []);
@@ -108,7 +110,12 @@ export default function WorkoutPlanView() {
     const exercises = currentDayPlan?.exercises || [];
     
     // Call hook BEFORE early returns
-    const { completedCount, totalCount, percent, isCompleted, toggleComplete, dayDone, markDayDone } = useDayProgress(client?.clientId, activeDay, exercises);
+    const { completedCount, totalCount, percent, isCompleted, toggleComplete, dayDone, markDayDone } = useDayProgress(client?.clientId, activeDay, exercises, week);
+
+    const handleLogout = useCallback(() => {
+        logout();
+        navigate('/client/login');
+    }, [logout, navigate]);
 
     const handleRegenerate = useCallback(() => {
         if (!client?.clientId) return;
@@ -205,15 +212,22 @@ export default function WorkoutPlanView() {
                             AIRFIT<span style={{ color:'#FF5C1A' }}>.</span>
                         </h1>
                     </div>
-                    <Link to="/client/progress" style={{
-                        background:'rgba(255,92,26,0.12)', color:'#FF5C1A', textDecoration:'none',
-                        padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:700,
-                        border:'1px solid rgba(255,92,26,0.2)',
-                        transition:'all 0.2s',
-                    }}
-                        onMouseEnter={e => { e.target.style.background='rgba(255,92,26,0.25)'; }}
-                        onMouseLeave={e => { e.target.style.background='rgba(255,92,26,0.12)'; }}
-                    >📊 Progress</Link>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                        <Link to="/client/progress" style={{
+                            background:'rgba(255,92,26,0.12)', color:'#FF5C1A', textDecoration:'none',
+                            padding:'8px 16px', borderRadius:8, fontSize:12, fontWeight:700,
+                            border:'1px solid rgba(255,92,26,0.2)',
+                            transition:'all 0.2s',
+                        }}
+                            onMouseEnter={e => { e.target.style.background='rgba(255,92,26,0.25)'; }}
+                            onMouseLeave={e => { e.target.style.background='rgba(255,92,26,0.12)'; }}
+                        >📊 Progress</Link>
+                        <button onClick={handleLogout} style={{
+                            background:'rgba(255,255,255,0.06)', color:'#ccc',
+                            padding:'8px 14px', borderRadius:8, fontSize:12, fontWeight:700,
+                            border:'1px solid rgba(255,255,255,0.12)', cursor:'pointer',
+                        }}>Logout</button>
+                    </div>
                 </header>
 
                 {/* Hero content */}
@@ -260,6 +274,15 @@ export default function WorkoutPlanView() {
 
             {/* ═══════════════ MAIN CONTENT ═══════════════ */}
             <main style={{ maxWidth:620, margin:'0 auto', padding:'28px 24px 100px' }}>
+                {activeGenerator && (
+                    <div style={{ marginBottom:28 }}>
+                        <Questionnaire
+                            planType={activeGenerator}
+                            client={client}
+                            onCancel={() => setActiveGenerator(null)}
+                        />
+                    </div>
+                )}
 
                 {/* ── Tabs Selector ── */}
                 <div style={{ display:'flex', gap:10, marginBottom:28, animation:'fadeUp 0.5s ease both' }}>
@@ -290,6 +313,29 @@ export default function WorkoutPlanView() {
                         transition:'all 0.3s ease', outline:'none'
                     }}>🔥 Calorie Log</button>
                 </div>
+
+                {!activeGenerator && (
+                    <div style={{ display:'flex', gap:10, marginBottom:24, flexWrap:'wrap' }}>
+                        {!workoutPlan?.days && (
+                            <button onClick={() => setActiveGenerator('Workout Plan')} style={{
+                                padding:'12px 16px', borderRadius:10, cursor:'pointer',
+                                background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)',
+                                color:'#fff', fontSize:12, fontWeight:700, fontFamily:"'Sora',sans-serif"
+                            }}>
+                                Generate Workout Plan
+                            </button>
+                        )}
+                        {!rawDiet && (
+                            <button onClick={() => setActiveGenerator('Diet Plan')} style={{
+                                padding:'12px 16px', borderRadius:10, cursor:'pointer',
+                                background:'rgba(255,92,26,0.12)', border:'1px solid rgba(255,92,26,0.22)',
+                                color:'#FF5C1A', fontSize:12, fontWeight:700, fontFamily:"'Sora',sans-serif"
+                            }}>
+                                Generate Diet Plan
+                            </button>
+                        )}
+                    </div>
+                )}
 
                 {activeTab === 'training' ? (
                     <>

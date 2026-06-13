@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { ENDPOINTS } from '../utils/config';
+import { updateClientPlanStatus } from '../utils/clientRepository';
+import { getClientPlans, markPlanPending, saveGeneratedPlan } from '../utils/planRepository';
 
 /**
  * Safely parse workoutJson — handles double-stringified JSON from n8n.
@@ -90,6 +92,12 @@ export function useClientPlan(clientId) {
 
             if (data.status === 'ready') {
                 if (data.workoutJson || data.dietHtml) {
+                    await saveGeneratedPlan(clientId, data).catch(error => {
+                        console.warn('[AirFit] Failed to save generated plan to Supabase:', error);
+                    });
+                    await updateClientPlanStatus(clientId, 'ready').catch(error => {
+                        console.warn('[AirFit] Failed to update remote client ready status:', error);
+                    });
                     savePlanToStorage(data);
                     return true;
                 } else {
@@ -123,6 +131,21 @@ export function useClientPlan(clientId) {
 
         const syncLocalAndRemote = async () => {
             try {
+                const remotePlans = await getClientPlans(clientId).catch(error => {
+                    console.warn('[AirFit] Supabase plan sync skipped:', error);
+                    return null;
+                });
+
+                if (remotePlans && remotePlans.planStatus !== 'none') {
+                    setPlanStatus(remotePlans.planStatus);
+                    setWorkoutPlan(remotePlans.workoutPlan);
+                    setDietPlan(remotePlans.dietPlan);
+
+                    if (remotePlans.planStatus === 'ready') {
+                        return;
+                    }
+                }
+
                 const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
                 const client = clients.find(c => c.clientId === clientId);
 
@@ -183,9 +206,15 @@ export function useClientPlan(clientId) {
         };
     }, [clientId, planStatus]);
 
-    const markPending = useCallback(() => {
+    const markPending = useCallback((planType = 'Workout Plan') => {
         if (!clientId) return;
         setPlanStatus('pending');
+        markPlanPending(clientId, planType).catch(error => {
+            console.warn('[AirFit] Failed to mark remote plan pending:', error);
+        });
+        updateClientPlanStatus(clientId, 'pending').catch(error => {
+            console.warn('[AirFit] Failed to update remote client status:', error);
+        });
         try {
             const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
             const idx = clients.findIndex(c => c.clientId === clientId);

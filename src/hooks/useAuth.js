@@ -1,12 +1,12 @@
 import { useState, useEffect } from 'react';
 import {
-  findClientByPhone,
   setAdminSession,
   setClientSession,
   clearSessions,
   getAdminSession,
   getClientSession,
 } from '../utils/storage';
+import { findClientByPhoneRemote } from '../utils/clientRepository';
 
 export const useAuth = () => {
   const [admin, setAdmin] = useState(null);
@@ -56,7 +56,7 @@ export const useAuth = () => {
    */
   const loginByPhone = async (phone) => {
     try {
-      const foundClient = await findClientByPhone(phone);
+      const foundClient = await findClientByPhoneRemote(phone);
       if (!foundClient) {
         return { success: false, error: 'Client not found. Please contact your trainer.' };
       }
@@ -86,4 +86,3 @@ export const useAuth = () => {
 
 export const useClientAuth = useAuth;
 export const useAdminAuth = useAuth;
-

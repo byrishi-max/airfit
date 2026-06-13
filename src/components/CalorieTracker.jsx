@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { logDailyCalories, getDailyCalories } from '../utils/storage';
+import { getCaloriesForDate, logCalories } from '../utils/progressRepository';
 
 export default function CalorieTracker({ clientId }) {
     const [food, setFood] = useState('');
@@ -7,17 +7,28 @@ export default function CalorieTracker({ clientId }) {
     const [logs, setLogs] = useState([]);
     
     useEffect(() => {
+        let cancelled = false;
         if (clientId) {
-            setLogs(getDailyCalories(clientId));
+            getCaloriesForDate(clientId).then(nextLogs => {
+                if (!cancelled) setLogs(nextLogs);
+            }).catch(error => {
+                console.warn('[AirFit] Failed to load calorie logs:', error);
+            });
         }
+        return () => {
+            cancelled = true;
+        };
     }, [clientId]);
 
-    const handleAdd = (e) => {
+    const handleAdd = async (e) => {
         e.preventDefault();
         if (!food || !calories) return;
         
-        logDailyCalories(clientId, food, parseInt(calories));
-        setLogs(getDailyCalories(clientId));
+        const nextLogs = await logCalories(clientId, food, parseInt(calories, 10)).catch(error => {
+            console.warn('[AirFit] Failed to save calorie log:', error);
+            return logs;
+        });
+        setLogs(nextLogs);
         setFood('');
         setCalories('');
     };

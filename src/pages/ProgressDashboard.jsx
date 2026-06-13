@@ -2,11 +2,26 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
-import { getProgress } from '../utils/storage';
+import { getLocalExerciseCompleted, getWeeklyProgress } from '../utils/progressRepository';
 import { Helmet } from 'react-helmet-async';
 
 import WeeklyChart from '../components/WeeklyBarChart';
 import CalorieTracker from '../components/CalorieTracker';
+
+function calculateStreak(dayRows = []) {
+    const completedDates = new Set(
+        dayRows
+            .filter(row => row.done && row.done_at)
+            .map(row => new Date(row.done_at).toISOString().split('T')[0])
+    );
+    let streak = 0;
+    const cursor = new Date();
+    while (completedDates.has(cursor.toISOString().split('T')[0])) {
+        streak += 1;
+        cursor.setDate(cursor.getDate() - 1);
+    }
+    return streak;
+}
 
 export default function ProgressDashboard() {
     const { client } = useClientAuth();
@@ -16,19 +31,38 @@ export default function ProgressDashboard() {
     const [stats, setStats] = useState({ total: 0, done: 0, streak: 0 });
 
     useEffect(() => {
-        if (workoutPlan && client) {
+        let cancelled = false;
+        async function loadStats() {
+            if (workoutPlan && client) {
+                const remoteProgress = await getWeeklyProgress(client.clientId, week).catch(error => {
+                    console.warn('[AirFit] Failed to load progress stats:', error);
+                    return null;
+                });
+
             let total = 0;
             let done = 0;
             workoutPlan.days.forEach(day => {
                 day.exercises.forEach(ex => {
                     total++;
-                    if (getProgress(client.clientId, week, day.day, ex.name)) {
+                    const isDone = remoteProgress?.exercises
+                        ? remoteProgress.exercises.some(row =>
+                            row.day_name === day.day &&
+                            row.exercise_name === ex.name &&
+                            row.completed
+                        )
+                        : getLocalExerciseCompleted(client.clientId, week, day.day, ex.name);
+                    if (isDone) {
                         done++;
                     }
                 });
             });
-            setStats({ total, done, streak: 5 }); // Streak mocked for now
+                if (!cancelled) setStats({ total, done, streak: calculateStreak(remoteProgress?.days || []) });
+            }
         }
+        loadStats();
+        return () => {
+            cancelled = true;
+        };
     }, [workoutPlan, client, week]);
 
     if (!client || !workoutPlan) {
