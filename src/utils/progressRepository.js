@@ -81,6 +81,142 @@ export async function getWeeklyProgress(clientId, weekNumber) {
   };
 }
 
+export function getCurrentRepeatWeek(generatedAt, now = new Date()) {
+  const startDate = generatedAt ? new Date(generatedAt) : new Date(now.getFullYear(), now.getMonth(), 1);
+  const safeStart = Number.isNaN(startDate.getTime())
+    ? new Date(now.getFullYear(), now.getMonth(), 1)
+    : startDate;
+  const elapsedDays = Math.max(0, Math.floor((now.getTime() - safeStart.getTime()) / 86400000));
+  return (Math.floor(elapsedDays / 7) % 4) + 1;
+}
+
+function getWorkoutTemplate(workoutPlan) {
+  const days = Array.isArray(workoutPlan?.days) ? workoutPlan.days : [];
+  const exerciseKeys = new Set();
+  let exerciseCount = 0;
+
+  days.forEach(day => {
+    const dayName = day.day || '';
+    (day.exercises || []).forEach(exercise => {
+      if (!exercise?.name) return;
+      exerciseCount += 1;
+      exerciseKeys.add(`${dayName}::${exercise.name}`);
+    });
+  });
+
+  return {
+    days,
+    exerciseCount,
+    exerciseKeys,
+    workoutDayCount: days.filter(day => (day.exercises || []).length > 0).length,
+  };
+}
+
+function calculateStreak(dayRows = []) {
+  const completedDates = new Set(
+    dayRows
+      .filter(row => row.done && row.done_at)
+      .map(row => new Date(row.done_at).toISOString().split('T')[0])
+  );
+
+  let streak = 0;
+  const cursor = new Date();
+  while (completedDates.has(cursor.toISOString().split('T')[0])) {
+    streak += 1;
+    cursor.setDate(cursor.getDate() - 1);
+  }
+  return streak;
+}
+
+function startOfMonthDate(date = new Date()) {
+  return new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
+}
+
+export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
+  const currentWeek = getCurrentRepeatWeek(generatedAt);
+  const template = getWorkoutTemplate(workoutPlan);
+  const monthlyExerciseTarget = template.exerciseCount * 4;
+  const monthlyDayTarget = template.workoutDayCount * 4;
+
+  if (!clientId || !template.exerciseCount) {
+    return {
+      currentWeek,
+      currentWeekDone: 0,
+      currentWeekTotal: template.exerciseCount,
+      monthlyDone: 0,
+      monthlyTotal: monthlyExerciseTarget,
+      completedDays: 0,
+      totalDays: monthlyDayTarget,
+      streak: 0,
+      todayCalories: 0,
+      weekCalories: 0,
+      monthCalories: 0,
+      weeklyProgress: null,
+    };
+  }
+
+  if (!isSupabaseConfigured) {
+    const currentWeekDone = template.days.reduce((sum, day) => {
+      return sum + (day.exercises || []).filter(exercise =>
+        getLocalProgress(clientId, currentWeek, day.day, exercise.name)
+      ).length;
+    }, 0);
+
+    return {
+      currentWeek,
+      currentWeekDone,
+      currentWeekTotal: template.exerciseCount,
+      monthlyDone: currentWeekDone,
+      monthlyTotal: template.exerciseCount,
+      completedDays: 0,
+      totalDays: template.workoutDayCount,
+      streak: 0,
+      todayCalories: getLocalDailyCalories(clientId).reduce((sum, log) => sum + Number(log.calories || 0), 0),
+      weekCalories: 0,
+      monthCalories: 0,
+      weeklyProgress: null,
+    };
+  }
+
+  const weekNumbers = [1, 2, 3, 4];
+  const [exerciseRows, dayRows, monthCaloriesRows, todayCaloriesRows] = await Promise.all([
+    supabaseRequest(`exercise_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=in.(1,2,3,4)&completed=eq.true&select=*`),
+    supabaseRequest(`day_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=in.(1,2,3,4)&done=eq.true&select=*`),
+    supabaseRequest(`calorie_logs?client_id=eq.${encodeURIComponent(clientId)}&log_date=gte.${startOfMonthDate()}&select=*`),
+    getCaloriesForDate(clientId),
+  ]);
+
+  const validCompletedExerciseKeys = new Set();
+  (exerciseRows || []).forEach(row => {
+    if (!template.exerciseKeys.has(`${row.day_name}::${row.exercise_name}`)) return;
+    validCompletedExerciseKeys.add(`${row.week_number}::${row.day_name}::${row.exercise_name}`);
+  });
+
+  const currentWeekDone = Array.from(validCompletedExerciseKeys)
+    .filter(key => key.startsWith(`${currentWeek}::`)).length;
+
+  const weeklyProgress = await getWeeklyProgress(clientId, currentWeek);
+  const todayCalories = (todayCaloriesRows || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
+  const weekCalories = (weeklyProgress?.calories || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
+  const monthCalories = (monthCaloriesRows || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
+
+  return {
+    currentWeek,
+    currentWeekDone,
+    currentWeekTotal: template.exerciseCount,
+    monthlyDone: validCompletedExerciseKeys.size,
+    monthlyTotal: monthlyExerciseTarget,
+    completedDays: (dayRows || []).length,
+    totalDays: monthlyDayTarget,
+    streak: calculateStreak(dayRows || []),
+    todayCalories,
+    weekCalories,
+    monthCalories,
+    weeklyProgress,
+    weekNumbers,
+  };
+}
+
 export function getLocalExerciseCompleted(clientId, weekNumber, dayName, exerciseName) {
   return getLocalProgress(clientId, weekNumber, dayName, exerciseName);
 }
@@ -128,4 +264,3 @@ async function getWeeklyCalories(clientId) {
     `calorie_logs?client_id=eq.${encodeURIComponent(clientId)}&log_date=gte.${sinceDate}&select=*`
   );
 }
-

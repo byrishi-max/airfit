@@ -236,6 +236,28 @@ a {
   padding: 4px 0 12px;
 }
 
+.fit-repeat-note {
+  display: grid;
+  gap: 4px;
+  margin: 16px 0;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 94, 0, 0.2);
+  border-radius: 12px;
+  background: rgba(255, 94, 0, 0.07);
+}
+
+.fit-repeat-note span,
+.fit-repeat-inline {
+  color: var(--fit-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.fit-repeat-note strong {
+  color: var(--fit-orange);
+  font-size: 14px;
+}
+
 .fit-week-pill {
   flex: 0 0 auto;
   padding: 0 18px;
@@ -426,10 +448,20 @@ a {
   display: flex;
   align-items: center;
   gap: 6px;
+  flex-wrap: wrap;
   margin-bottom: 9px;
   color: var(--fit-muted);
   font-size: 12px;
   font-weight: 800;
+}
+
+.fit-video-label b {
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 94, 0, 0.24);
+  border-radius: 999px;
+  color: var(--fit-orange);
+  font-size: 10px;
+  line-height: 1;
 }
 
 .fit-video-frame {
@@ -487,6 +519,180 @@ a {
 
 .fit-diet-detail {
   padding: 22px 18px;
+}
+
+.fit-home-main {
+  display: block;
+}
+
+.fit-home-avatar {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255, 94, 0, 0.32);
+  border-radius: 14px;
+  background: rgba(255, 94, 0, 0.12);
+  color: var(--fit-orange);
+  font-weight: 900;
+}
+
+.fit-home-status,
+.fit-home-hero,
+.fit-home-card {
+  border: 1px solid var(--fit-border);
+  border-radius: 18px;
+  background: rgba(17, 17, 17, 0.92);
+}
+
+.fit-home-status {
+  display: grid;
+  gap: 8px;
+  margin-bottom: 18px;
+  padding: 16px;
+}
+
+.fit-home-status strong {
+  color: var(--fit-text);
+}
+
+.fit-home-status span {
+  color: var(--fit-muted);
+  line-height: 1.5;
+}
+
+.fit-home-status button {
+  min-height: 44px;
+  border: 1px solid rgba(255, 94, 0, 0.35);
+  border-radius: 12px;
+  background: var(--fit-orange);
+  color: #101010;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.fit-home-hero {
+  margin-bottom: 18px;
+  padding: 22px;
+}
+
+.fit-home-hero h2 {
+  margin: 0 0 10px;
+  color: var(--fit-text);
+  font-size: clamp(26px, 6vw, 44px);
+  font-weight: 900;
+  line-height: 1;
+}
+
+.fit-home-hero p:last-child {
+  max-width: 620px;
+  margin: 0;
+  color: var(--fit-muted);
+  font-size: 16px;
+  line-height: 1.6;
+}
+
+.fit-home-grid {
+  display: grid;
+  gap: 14px;
+}
+
+.fit-analytics-grid {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.fit-metric-card {
+  display: grid;
+  gap: 8px;
+  padding: 18px;
+  border: 1px solid var(--fit-border);
+  border-radius: 18px;
+  background: rgba(17, 17, 17, 0.92);
+}
+
+.fit-metric-card span {
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 94, 0, 0.12);
+  color: var(--fit-orange);
+}
+
+.fit-metric-card small,
+.fit-metric-card em {
+  color: var(--fit-muted);
+  font-style: normal;
+}
+
+.fit-metric-card small {
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.fit-metric-card strong {
+  color: var(--fit-text);
+  font-size: 30px;
+  font-weight: 900;
+}
+
+.fit-progress-layout {
+  display: grid;
+  gap: 18px;
+}
+
+.fit-progress-calories {
+  padding: 0;
+}
+
+.fit-home-card {
+  min-height: 156px;
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  color: var(--fit-text);
+  text-align: left;
+  cursor: pointer;
+  transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+}
+
+.fit-home-card:hover {
+  border-color: rgba(255, 94, 0, 0.35);
+  background: rgba(255, 94, 0, 0.07);
+}
+
+.fit-home-card:active {
+  transform: scale(0.98);
+}
+
+.fit-home-card.is-primary {
+  border-color: rgba(255, 94, 0, 0.45);
+}
+
+.fit-home-card-icon {
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(255, 94, 0, 0.12);
+  color: var(--fit-orange);
+}
+
+.fit-home-card strong {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+.fit-home-card small {
+  color: var(--fit-muted);
+  font-size: 14px;
+  line-height: 1.5;
 }
 
 .fit-diet-greeting {
@@ -629,6 +835,14 @@ a {
   .fit-macro-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+
+  .fit-home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fit-analytics-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (min-width: 1024px) {
@@ -637,6 +851,18 @@ a {
     grid-template-columns: 340px minmax(0, 1fr);
     gap: 22px;
     align-items: start;
+  }
+
+  .fit-dashboard.fit-home-main {
+    display: block;
+  }
+
+  .fit-analytics-grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .fit-progress-layout {
+    grid-template-columns: minmax(0, 1.15fr) minmax(300px, 0.85fr);
   }
 
   .fit-nav-panel {

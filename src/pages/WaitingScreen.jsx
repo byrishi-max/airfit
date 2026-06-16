@@ -42,7 +42,7 @@ export default function WaitingScreen() {
 
     useEffect(() => {
         if (planStatus === 'ready') {
-            navigate('/client/plan');
+            navigate('/client/dashboard');
         }
     }, [planStatus, navigate]);
 

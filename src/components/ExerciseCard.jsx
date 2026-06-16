@@ -26,6 +26,9 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
     const videoId = getVideoId(exercise);
     const sets = exercise?.sets || '3';
     const reps = exercise?.reps || '10-12';
+    const durationSeconds = Number(exercise?.durationSeconds || 0);
+    const isShortCandidate = Boolean(exercise?.isShortCandidate || (durationSeconds > 0 && durationSeconds <= 60));
+    const durationLabel = durationSeconds ? `${durationSeconds}s` : '';
 
     return (
         <article className={`fit-exercise-card ${completed ? 'is-complete' : ''}`}>
@@ -43,7 +46,10 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
                 <div className="fit-video-block">
                     <div className="fit-video-label">
                         <PlayCircle size={15} />
-                        <span>Technique video</span>
+                        <span>{exercise.videoTitle || 'Technique video'}</span>
+                        {durationLabel && <b>{durationLabel}</b>}
+                        {isShortCandidate && <b>Short</b>}
+                        {exercise.videoFallback && <b>Fallback</b>}
                     </div>
                     <div className="fit-video-frame">
                         <iframe

@@ -13,7 +13,7 @@ export const parseWorkoutJson = (jsonStrOrObj) => {
 export const getDemoWorkoutPlan = () => {
     return {
         greeting: "Hi there! Here is a sample workout plan while we connect to the AI.",
-        overview: "This 6-day plan focuses on building muscle and strength.",
+        overview: "This reusable one-week plan focuses on building muscle and strength.",
         days: [
             {
                 day: "Monday",

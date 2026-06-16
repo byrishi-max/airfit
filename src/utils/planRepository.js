@@ -15,6 +15,8 @@ export async function getClientPlans(clientId) {
     dietPlan: diet?.diet_html || null,
     workoutStatus: workout?.status || 'none',
     dietStatus: diet?.status || 'none',
+    workoutGeneratedAt: workout?.generated_at || workout?.created_at || null,
+    dietGeneratedAt: diet?.generated_at || diet?.created_at || null,
     planStatus: workout?.status === 'ready' || diet?.status === 'ready'
       ? 'ready'
       : rows.some(row => row.status === 'pending' || row.status === 'processing')

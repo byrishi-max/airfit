@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Activity, ArrowLeft, Dumbbell, Flame, LogOut, Utensils } from 'lucide-react';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
@@ -8,13 +8,14 @@ import ExerciseCard from '../components/ExerciseCard';
 import ProgressBar from '../components/ProgressBar';
 import Questionnaire from '../components/Questionnaire';
 import { useDayProgress } from '../hooks/useDayProgress';
+import { getCurrentRepeatWeek } from '../utils/progressRepository';
 
 const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
 const FALLBACK_WORKOUT = {
     greeting: 'Your training plan is ready.',
-    overview: 'Follow the week tabs, complete each session, then mark the day as done.',
+    overview: 'Follow the daily template, complete each session, then mark the day as done.',
     days: [
         {
             day: 'Monday',
@@ -87,10 +88,13 @@ function normalizeDays(plan) {
 
 export default function WorkoutPlanView() {
     const { client, logout } = useClientAuth();
-    const { workoutPlan: rawPlan, dietPlan: rawDiet } = useClientPlan(client?.clientId);
+    const { workoutPlan: rawPlan, dietPlan: rawDiet, workoutGeneratedAt } = useClientPlan(client?.clientId);
     const navigate = useNavigate();
-    const [activeTab, setActiveTab] = useState('training');
-    const [week, setWeek] = useState(1);
+    const [searchParams] = useSearchParams();
+    const [activeTab, setActiveTab] = useState(() => {
+        const tab = searchParams.get('tab');
+        return ['training', 'diet', 'calories'].includes(tab) ? tab : 'training';
+    });
     const [activeDay, setActiveDay] = useState('Monday');
     const [activeGenerator, setActiveGenerator] = useState(null);
 
@@ -99,6 +103,7 @@ export default function WorkoutPlanView() {
     const currentDayPlan = useMemo(() => days.find(day => day.day === activeDay) || days[0], [days, activeDay]);
     const exercises = currentDayPlan?.exercises || [];
     const firstName = client?.name?.split(' ')?.[0] || 'Vishall';
+    const repeatWeek = useMemo(() => getCurrentRepeatWeek(workoutGeneratedAt), [workoutGeneratedAt]);
 
     const {
         completedCount,
@@ -108,7 +113,7 @@ export default function WorkoutPlanView() {
         toggleComplete,
         dayDone,
         markDayDone,
-    } = useDayProgress(client?.clientId, activeDay, exercises, week);
+    } = useDayProgress(client?.clientId, activeDay, exercises, repeatWeek);
 
     const handleDietAction = () => {
         setActiveTab('diet');
@@ -176,12 +181,9 @@ export default function WorkoutPlanView() {
                         </div>
                     )}
 
-                    <div className="fit-pill-row" aria-label="Week selector">
-                        {[1, 2, 3, 4].map(item => (
-                            <button key={item} className={`fit-week-pill ${week === item ? 'is-active' : ''}`} onClick={() => setWeek(item)}>
-                                Week {item}
-                            </button>
-                        ))}
+                    <div className="fit-repeat-note">
+                        <span>One-week template</span>
+                        <strong>Tracking repeat week {repeatWeek} of 4</strong>
                     </div>
 
                     <div className="fit-day-row" aria-label="Day selector">
@@ -210,6 +212,7 @@ export default function WorkoutPlanView() {
                 ) : (
                     <TrainingPlan
                         currentDayPlan={currentDayPlan}
+                        repeatWeek={repeatWeek}
                         exercises={exercises}
                         completedCount={completedCount}
                         totalCount={totalCount}
@@ -227,6 +230,7 @@ export default function WorkoutPlanView() {
 
 function TrainingPlan({
     currentDayPlan,
+    repeatWeek,
     exercises,
     completedCount,
     totalCount,
@@ -242,6 +246,7 @@ function TrainingPlan({
                 <div>
                     <p className="fit-kicker">Training Plan</p>
                     <h2>{currentDayPlan?.muscle || 'Training Day'}</h2>
+                    <span className="fit-repeat-inline">Monthly repeat week {repeatWeek}</span>
                 </div>
                 <span className="fit-count-chip">{exercises.length} exercises</span>
             </div>

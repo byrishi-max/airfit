@@ -27,9 +27,7 @@ export default function ClientLogin() {
         }
 
         const client = result.client;
-        if (client.planStatus === 'ready') {
-            navigate('/client/plan');
-        } else if (client.planStatus === 'pending') {
+        if (client.planStatus === 'pending') {
             navigate('/client/waiting');
         } else {
             navigate('/client/dashboard');

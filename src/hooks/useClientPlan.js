@@ -28,6 +28,8 @@ export function useClientPlan(clientId) {
     const [planStatus, setPlanStatus] = useState('none');
     const [workoutPlan, setWorkoutPlan] = useState(null);
     const [dietPlan, setDietPlan] = useState(null);
+    const [workoutGeneratedAt, setWorkoutGeneratedAt] = useState(null);
+    const [dietGeneratedAt, setDietGeneratedAt] = useState(null);
     const [isLoading, setIsLoading] = useState(false);
     const isLoadingRef = useRef(false);
     const checkPlanRef = useRef(null);
@@ -57,6 +59,8 @@ export function useClientPlan(clientId) {
         }
         setWorkoutPlan(parsed);
         setDietPlan(data.dietHtml || null); // Save diet plan to state
+        if (data.workoutJson) setWorkoutGeneratedAt(data.generatedAt || new Date().toISOString());
+        if (data.dietHtml) setDietGeneratedAt(data.generatedAt || new Date().toISOString());
         setPlanStatus('ready');
     }, [clientId]);
 
@@ -126,6 +130,8 @@ export function useClientPlan(clientId) {
             setPlanStatus('none');
             setWorkoutPlan(null);
             setDietPlan(null);
+            setWorkoutGeneratedAt(null);
+            setDietGeneratedAt(null);
             return;
         }
 
@@ -140,6 +146,8 @@ export function useClientPlan(clientId) {
                     setPlanStatus(remotePlans.planStatus);
                     setWorkoutPlan(remotePlans.workoutPlan);
                     setDietPlan(remotePlans.dietPlan);
+                    setWorkoutGeneratedAt(remotePlans.workoutGeneratedAt);
+                    setDietGeneratedAt(remotePlans.dietGeneratedAt);
 
                     if (remotePlans.planStatus === 'ready') {
                         return;
@@ -153,6 +161,8 @@ export function useClientPlan(clientId) {
                     setPlanStatus(client.planStatus || 'none');
                     setWorkoutPlan(parseWorkout(client.workoutPlan));
                     setDietPlan(client.dietPlan || null);
+                    setWorkoutGeneratedAt(client.planReadyAt || client.generatedAt || null);
+                    setDietGeneratedAt(client.planReadyAt || client.generatedAt || null);
                     console.log(`[AirFit] useClientPlan sync for ${clientId}:`, client.planStatus);
 
                     // If local says none, check the server once for cross-device updates.
@@ -164,6 +174,8 @@ export function useClientPlan(clientId) {
                     setPlanStatus('none');
                     setWorkoutPlan(null);
                     setDietPlan(null);
+                    setWorkoutGeneratedAt(null);
+                    setDietGeneratedAt(null);
                     console.log('[AirFit] Client not in local storage, checking server...');
                     await checkPlanRef.current?.();
                 }
@@ -229,7 +241,7 @@ export function useClientPlan(clientId) {
         }
     }, [clientId]);
 
-    return { planStatus, workoutPlan, dietPlan, markPending, checkPlan, isLoading };
+    return { planStatus, workoutPlan, dietPlan, workoutGeneratedAt, dietGeneratedAt, markPending, checkPlan, isLoading };
 }
 
 export default useClientPlan;
