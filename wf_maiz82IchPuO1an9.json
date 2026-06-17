@@ -47,7 +47,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const allItems  = $input.all();\nconst base      = allItems[0].json;\nconst clientCtx = $('Build Gemini Prompt').first().json;\n\nif (!base.exerciseMode) {\n  return [{ json: {\n    ...base,\n    clientId:    clientCtx.clientId,\n    clientName:  clientCtx.clientName,\n    clientEmail: clientCtx.clientEmail,\n    clientPhone: clientCtx.clientPhone,\n    planType:    clientCtx.planType\n  }}];\n}\n\nconst wj = base.workoutJson;\nconst dayMap = new Map();\nfor (const item of allItems) {\n  const d = item.json;\n  if (!dayMap.has(d.day)) dayMap.set(d.day, { day: d.day, muscle: d.muscle, exercises: [] });\n  dayMap.get(d.day).exercises.push({\n    name: d.exerciseName, sets: d.sets, reps: d.reps,\n    setsReps: d.setsReps,\n    videoId: d.videoId, videoUrl: d.videoUrl,\n    videoTitle: d.videoTitle, channelName: d.channelName,\n    durationSeconds: d.durationSeconds,\n    isShortCandidate: d.isShortCandidate,\n    videoFallback: d.videoFallback,\n    thumb: d.thumb\n  });\n}\n\nconst sourceDays = Array.isArray(wj?.days) ? wj.days : [];\nconst enrichedDays = sourceDays.map(day => {\n  if (dayMap.has(day.day)) return dayMap.get(day.day);\n  return { day: day.day, muscle: day.muscle || 'Rest', exercises: [] };\n});\nconst enrichedWorkoutJson = {\n  greeting:     wj ? wj.greeting     : '',\n  overview:     wj ? wj.overview     : '',\n  warmup:       wj ? wj.warmup       : [],\n  cooldown:     wj ? wj.cooldown     : [],\n  recoveryTips: wj ? wj.recoveryTips : [],\n  days: enrichedDays\n};\n\nreturn [{ json: {\n  isDiet:       false,\n  workoutJson:  enrichedWorkoutJson,\n  planHtml:     null,\n  clientId:     clientCtx.clientId,\n  clientName:   clientCtx.clientName,\n  clientEmail:  clientCtx.clientEmail,\n  clientPhone:  clientCtx.clientPhone,\n  planType:     clientCtx.planType\n}}];"
+        "jsCode": "const allItems  = $input.all();\nconst base      = allItems[0].json;\nconst clientCtx = $('Build Gemini Prompt').first().json;\n\nif (!base.exerciseMode) {\n  return [{ json: {\n    ...base,\n    clientId:    clientCtx.clientId,\n    clientName:  clientCtx.clientName,\n    clientEmail: clientCtx.clientEmail,\n    clientPhone: clientCtx.clientPhone,\n    planType:    clientCtx.planType\n  }}];\n}\n\nconst wj = base.workoutJson;\nconst dayMap = new Map();\nfor (const item of allItems) {\n  const d = item.json;\n  if (!dayMap.has(d.day)) dayMap.set(d.day, { day: d.day, muscle: d.muscle, exercises: [] });\n  dayMap.get(d.day).exercises.push({\n    name: d.exerciseName, sets: d.sets, reps: d.reps,\n    setsReps: d.setsReps,\n    videoId: d.videoId, videoUrl: d.videoUrl,\n    videoTitle: d.videoTitle, channelName: d.channelName,\n    durationSeconds: d.durationSeconds,\n    isPreferredShort: d.isPreferredShort,\n    isShortCandidate: d.isShortCandidate,\n    videoFallback: d.videoFallback,\n    videoSearchQuery: d.videoSearchQuery,\n    thumb: d.thumb\n  });\n}\n\nconst sourceDays = Array.isArray(wj?.days) ? wj.days : [];\nconst enrichedDays = sourceDays.map(day => {\n  if (dayMap.has(day.day)) return dayMap.get(day.day);\n  return { day: day.day, muscle: day.muscle || 'Rest', exercises: [] };\n});\nconst enrichedWorkoutJson = {\n  greeting:     wj ? wj.greeting     : '',\n  overview:     wj ? wj.overview     : '',\n  warmup:       wj ? wj.warmup       : [],\n  cooldown:     wj ? wj.cooldown     : [],\n  recoveryTips: wj ? wj.recoveryTips : [],\n  days: enrichedDays\n};\n\nreturn [{ json: {\n  isDiet:       false,\n  workoutJson:  enrichedWorkoutJson,\n  planHtml:     null,\n  clientId:     clientCtx.clientId,\n  clientName:   clientCtx.clientName,\n  clientEmail:  clientCtx.clientEmail,\n  clientPhone:  clientCtx.clientPhone,\n  planType:     clientCtx.planType\n}}];"
       },
       "id": "250de3e1-803b-48b2-883f-0b7e1fba8cac",
       "name": "Rebuild Workout Plan",
@@ -60,7 +60,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const ytItems   = $input.all();\nconst exItems   = $('Extract Exercises').all();\nconst clientCtx = $('Build Gemini Prompt').first().json;\nconst output    = [];\n\nfunction parseIsoDuration(value) {\n  const match = String(value || '').match(/^PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?$/);\n  if (!match) return null;\n  return (Number(match[1] || 0) * 3600) + (Number(match[2] || 0) * 60) + Number(match[3] || 0);\n}\n\nfunction scoreVideo(video, exerciseName) {\n  const title = (video.snippet?.title || '').toLowerCase();\n  const ex = String(exerciseName || '').toLowerCase().split(/\\s+/).filter(Boolean);\n  const titleHits = ex.filter(word => title.includes(word)).length;\n  const duration = parseIsoDuration(video.contentDetails?.duration) || 9999;\n  const shortBonus = duration <= 60 ? 50 : 0;\n  return shortBonus + titleHits * 10 - Math.max(0, duration - 60) / 10;\n}\n\nfor (let i = 0; i < ytItems.length; i++) {\n  const ytResp = ytItems[i].json;\n  const exCtx  = exItems[i] ? exItems[i].json : {};\n  const videos = (ytResp.items || []).filter(video => video.id && video.status?.embeddable !== false);\n  const sorted = videos.sort((a, b) => scoreVideo(b, exCtx.exerciseName) - scoreVideo(a, exCtx.exerciseName));\n  const chosen = sorted.find(video => (parseIsoDuration(video.contentDetails?.duration) || 9999) <= 60) || sorted[0] || null;\n\n  let videoId = null, videoUrl = null, videoTitle = null, channelName = null, thumb = null, durationSeconds = null, isShortCandidate = false, videoFallback = false;\n  if (chosen) {\n    videoId = chosen.id;\n    videoUrl = 'https://www.youtube.com/watch?v=' + videoId;\n    videoTitle = chosen.snippet?.title || null;\n    channelName = chosen.snippet?.channelTitle || null;\n    const thumbnails = chosen.snippet?.thumbnails || {};\n    thumb = (thumbnails.medium || thumbnails.default || {}).url || null;\n    durationSeconds = parseIsoDuration(chosen.contentDetails?.duration);\n    isShortCandidate = Boolean(durationSeconds && durationSeconds <= 60);\n    videoFallback = !isShortCandidate;\n  }\n\n  output.push({ json: {\n    exerciseMode: true,\n    exerciseName: exCtx.exerciseName || '',\n    sets: exCtx.sets || '3', reps: exCtx.reps || '10',\n    setsReps: exCtx.setsReps || '3 x 10',\n    day: exCtx.day || '', muscle: exCtx.muscle || '',\n    videoId, videoUrl, videoTitle, channelName, durationSeconds, isShortCandidate, videoFallback, thumb,\n    workoutJson: exCtx.workoutJson || null,\n    clientId:    clientCtx.clientId,\n    clientName:  clientCtx.clientName,\n    clientEmail: clientCtx.clientEmail,\n    clientPhone: clientCtx.clientPhone,\n    planType:    clientCtx.planType,\n    goal:        clientCtx.goal,\n    isDiet: false\n  }});\n}\nreturn output;"
+        "jsCode": "const ytItems = $input.all();\nconst exItems = $('Extract Exercises').all();\nconst clientCtx = $('Build Gemini Prompt').first().json;\nconst output = [];\n\nfunction parseIsoDuration(value) {\n  const match = String(value || '').match(/^PT(?:(\\d+)H)?(?:(\\d+)M)?(?:(\\d+)S)?$/);\n  if (!match) return null;\n  return (Number(match[1] || 0) * 3600) + (Number(match[2] || 0) * 60) + Number(match[3] || 0);\n}\n\nfunction words(value) {\n  return String(value || '')\n    .toLowerCase()\n    .replace(/[^a-z0-9\\s]/g, ' ')\n    .split(/\\s+/)\n    .filter(word => word.length > 2 && !['with', 'the', 'and', 'for', 'how', 'shorts', 'exercise', 'proper', 'form'].includes(word));\n}\n\nfunction scoreVideo(video, exerciseName) {\n  const title = String(video.snippet?.title || '').toLowerCase();\n  const channel = String(video.snippet?.channelTitle || '').toLowerCase();\n  const duration = parseIsoDuration(video.contentDetails?.duration) || 9999;\n  const exWords = words(exerciseName);\n  const titleHits = exWords.filter(word => title.includes(word)).length;\n  const allWordsHit = exWords.length > 0 && titleHits === exWords.length;\n  let score = 0;\n  if (duration <= 30) score += 140;\n  else if (duration <= 60) score += 95;\n  else if (duration <= 120) score += 15;\n  score += titleHits * 25;\n  if (allWordsHit) score += 45;\n  if (title.includes('short') || title.includes('#shorts')) score += 18;\n  if (title.includes('proper') || title.includes('form') || title.includes('tutorial')) score += 16;\n  if (title.includes('mistake') || title.includes('compilation') || title.includes('funny')) score -= 45;\n  if (channel.includes('official') || channel.includes('fitness') || channel.includes('coach')) score += 6;\n  score -= Math.max(0, duration - 30) / 4;\n  return score;\n}\n\nfor (let i = 0; i < ytItems.length; i++) {\n  const ytResp = ytItems[i].json;\n  const exCtx = exItems[i] ? exItems[i].json : {};\n  const videos = (ytResp.items || [])\n    .filter(video => video.id && video.status?.embeddable !== false)\n    .map(video => ({ ...video, durationSeconds: parseIsoDuration(video.contentDetails?.duration) }));\n  const sorted = videos.sort((a, b) => scoreVideo(b, exCtx.exerciseName) - scoreVideo(a, exCtx.exerciseName));\n  const chosen = sorted.find(video => video.durationSeconds && video.durationSeconds <= 30)\n    || sorted.find(video => video.durationSeconds && video.durationSeconds <= 60)\n    || sorted[0]\n    || null;\n\n  let videoId = null;\n  let videoUrl = null;\n  let videoTitle = null;\n  let channelName = null;\n  let thumb = null;\n  let durationSeconds = null;\n  let isShortCandidate = false;\n  let isPreferredShort = false;\n  let videoFallback = true;\n  if (chosen) {\n    videoId = chosen.id;\n    videoUrl = 'https://www.youtube.com/watch?v=' + videoId;\n    videoTitle = chosen.snippet?.title || null;\n    channelName = chosen.snippet?.channelTitle || null;\n    const thumbnails = chosen.snippet?.thumbnails || {};\n    thumb = (thumbnails.medium || thumbnails.high || thumbnails.default || {}).url || null;\n    durationSeconds = chosen.durationSeconds || null;\n    isPreferredShort = Boolean(durationSeconds && durationSeconds <= 30);\n    isShortCandidate = Boolean(durationSeconds && durationSeconds <= 60);\n    videoFallback = !isShortCandidate;\n  }\n\n  output.push({ json: {\n    exerciseMode: true,\n    exerciseName: exCtx.exerciseName || '',\n    sets: exCtx.sets || '3',\n    reps: exCtx.reps || '10',\n    setsReps: exCtx.setsReps || '3 x 10',\n    day: exCtx.day || '',\n    muscle: exCtx.muscle || '',\n    videoId,\n    videoUrl,\n    videoTitle,\n    channelName,\n    durationSeconds,\n    isShortCandidate,\n    isPreferredShort,\n    videoFallback,\n    videoSearchQuery: exCtx.ytQuery || '',\n    thumb,\n    workoutJson: exCtx.workoutJson || null,\n    clientId: clientCtx.clientId,\n    clientName: clientCtx.clientName,\n    clientEmail: clientCtx.clientEmail,\n    clientPhone: clientCtx.clientPhone,\n    planType: clientCtx.planType,\n    goal: clientCtx.goal,\n    isDiet: false\n  }});\n}\nreturn output;"
       },
       "id": "b7a087a7-feff-498d-ac8a-ef2531a1da22",
       "name": "Attach Exercise Video",
@@ -91,7 +91,7 @@
             },
             {
               "name": "maxResults",
-              "value": "5"
+              "value": "10"
             },
             {
               "name": "relevanceLanguage",
@@ -128,7 +128,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data = $input.first().json;\nconst clientCtx = $('Build Gemini Prompt').first().json;\n\nif (data.isDiet) {\n  return [{ json: { ...data, exerciseMode: false, ytQuery: null } }];\n}\n\nconst wj = data.workoutJson;\nif (!wj || !wj.days || !wj.days.length) {\n  return [{ json: { ...data, exerciseMode: false, ytQuery: null } }];\n}\n\nconst items = [];\nfor (const day of wj.days) {\n  for (const ex of (day.exercises || [])) {\n    const exName  = typeof ex === 'string' ? ex : (ex.name || '');\n    const exSets  = ex.sets ? String(ex.sets) : '3';\n    const exReps  = ex.reps ? String(ex.reps) : '10';\n    const context = [clientCtx.gymAccess, clientCtx.goal, clientCtx.focusArea, clientCtx.injuries]\n      .filter(Boolean)\n      .join(' ');\n    items.push({ json: {\n      exerciseMode: true,\n      exerciseName: exName,\n      sets: exSets, reps: exReps,\n      setsReps: exSets + ' x ' + exReps,\n      day: day.day,\n      muscle: day.muscle || '',\n      ytQuery: (exName + ' ' + context + ' shorts proper form gym exercise').replace(/\\s+/g, ' ').trim(),\n      workoutJson: data.workoutJson,\n      clientId: data.clientId,\n      clientName: data.clientName,\n      clientEmail: data.clientEmail,\n      clientPhone: data.clientPhone,\n      planType: data.planType,\n      goal: data.goal,\n      isDiet: false\n    }});\n  }\n}\nreturn items;"
+        "jsCode": "const data = $input.first().json;\nconst clientCtx = $('Build Gemini Prompt').first().json;\n\nif (data.isDiet) {\n  return [{ json: { ...data, exerciseMode: false, ytQuery: null } }];\n}\n\nconst wj = data.workoutJson;\nif (!wj || !wj.days || !wj.days.length) {\n  return [{ json: { ...data, exerciseMode: false, ytQuery: null } }];\n}\n\nconst items = [];\nfor (const day of wj.days) {\n  for (const ex of (day.exercises || [])) {\n    const exName = typeof ex === 'string' ? ex : (ex.name || '');\n    if (!exName) continue;\n    const exSets = ex.sets ? String(ex.sets) : '3';\n    const exReps = ex.reps ? String(ex.reps) : '10';\n    const context = [\n      clientCtx.gymAccess,\n      clientCtx.goal,\n      clientCtx.focusArea,\n      clientCtx.injuries && clientCtx.injuries !== 'None' ? clientCtx.injuries : '',\n      'exercise form',\n      '30 seconds',\n      '#shorts'\n    ].filter(Boolean).join(' ');\n    items.push({ json: {\n      exerciseMode: true,\n      exerciseName: exName,\n      sets: exSets,\n      reps: exReps,\n      setsReps: exSets + ' x ' + exReps,\n      day: day.day,\n      muscle: day.muscle || '',\n      ytQuery: (exName + ' ' + context).replace(/\\s+/g, ' ').trim(),\n      workoutJson: data.workoutJson,\n      clientId: data.clientId,\n      clientName: data.clientName,\n      clientEmail: data.clientEmail,\n      clientPhone: data.clientPhone,\n      planType: data.planType,\n      goal: data.goal,\n      isDiet: false\n    }});\n  }\n}\nreturn items;"
       },
       "id": "fab95fbd-30ea-493c-8349-992d3c147dab",
       "name": "Extract Exercises",
@@ -293,6 +293,31 @@
         1440,
         160
       ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://airfitplangen.duckdns.org/webhook/airfit-invite",
+        "sendBody": true,
+        "contentType": "raw",
+        "rawContentType": "application/json",
+        "body": "={{ JSON.stringify({ mode: 'planReady', name: $json.clientName, email: $json.clientEmail, phone: $json.clientPhone, appUrl: 'https://airfitworkout.vercel.app/client/dashboard', planType: $json.planType, generatedAt: $json.generatedAt }) }}",
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "id": "send-plan-ready-email-airfit",
+      "name": "Send Plan Ready Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        2640,
+        340
+      ]
     }
   ],
   "connections": {
@@ -301,6 +326,11 @@
         [
           {
             "node": "Save Plan to Store",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send Plan Ready Email",
             "type": "main",
             "index": 0
           }
