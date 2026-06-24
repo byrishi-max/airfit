@@ -55,9 +55,12 @@
         0
       ],
       "webhookId": "cb52e808-7f83-4189-969d-3e1f42f86eae",
+      "retryOnFail": true,
+      "maxTries": 3,
+      "waitBetweenTries": 5000,
       "credentials": {
         "gmailOAuth2": {
-          "id": "zf3m1aRux3SuJfw6",
+          "id": "",
           "name": "Gmail account"
         }
       }

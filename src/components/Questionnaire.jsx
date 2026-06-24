@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
+import { Rocket, Send, Loader2 } from "lucide-react";
 import { useClientPlan } from "../hooks/useClientPlan";
 import { ENDPOINTS } from "../utils/config";
 
@@ -222,9 +223,10 @@ function Questionnaire({ planType, client, onCancel }) {
                         flex: 1, padding: '15px 24px', borderRadius: '8px', border: 'none',
                         background: loading ? '#2a2a2a' : 'linear-gradient(135deg, #FF6B00 0%, #ff4500 100%)',
                         color: loading ? '#666' : '#fff', fontSize: '15px', fontWeight: '700',
-                        cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Sora', sans-serif"
+                        cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Sora', sans-serif",
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                     }}>
-                        {loading ? '✈️ Submitting...' : '🚀 Generate My Plan'}
+                        {loading ? <><Loader2 size={18} className="animate-spin" /> Submitting...</> : <><Rocket size={18} /> Generate My Plan</>}
                     </button>
                 )}
             </div>

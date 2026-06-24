@@ -34,7 +34,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const data      = $input.first().json;\nconst clientCtx = $('Build Gemini Prompt').first().json;\n\nconst clientId    = data.clientId    || clientCtx.clientId    || '';\nconst clientName  = data.clientName  || clientCtx.clientName  || '';\nconst clientEmail = data.clientEmail || clientCtx.clientEmail || '';\nconst clientPhone = data.clientPhone || clientCtx.clientPhone || '';\nconst planType    = data.planType    || clientCtx.planType    || '';\nconst isDiet      = data.isDiet;\n\nreturn [{ json: {\n  clientId,\n  clientName,\n  clientEmail,\n  clientPhone,\n  planType,\n  isDiet,\n  workoutJson:  isDiet ? null : data.workoutJson,\n  dietHtml:     isDiet ? data.planHtml : null,\n  generatedAt:  new Date().toISOString()\n}}];"
+        "jsCode": "const data      = $input.first().json;\nconst clientCtx = $('Build Gemini Prompt').first().json;\n\nconst clientId    = data.clientId    || clientCtx.clientId    || '';\nconst clientName  = data.clientName  || clientCtx.clientName  || '';\nconst clientEmail = data.clientEmail || clientCtx.clientEmail || '';\nconst clientPhone = data.clientPhone || clientCtx.clientPhone || '';\nconst planType    = data.planType    || clientCtx.planType    || '';\nconst goal        = data.goal        || clientCtx.goal        || '';\nconst age         = data.age         || clientCtx.age         || '';\nconst gender      = data.gender      || clientCtx.gender      || '';\nconst isDiet      = data.isDiet;\n\nreturn [{ json: {\n  clientId,\n  clientName,\n  clientEmail,\n  clientPhone,\n  goal,\n  age,\n  gender,\n  planType,\n  isDiet,\n  workoutJson:  isDiet ? null : data.workoutJson,\n  dietHtml:     isDiet ? data.planHtml : null,\n  generatedAt:  new Date().toISOString()\n}}];"
       },
       "id": "e49cef3d-9975-41ce-ab05-545ce2b8517d",
       "name": "Build Plan Response",
@@ -98,10 +98,6 @@
               "value": "en"
             },
             {
-              "name": "key",
-              "value": "AIzaSyAKNvkI_PT0ol4-nR0efbfR_pez7chQ3uA"
-            },
-            {
               "name": "q",
               "value": "={{ $json.ytQuery }}"
             },
@@ -115,7 +111,9 @@
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
       },
       "id": "36330eed-bd73-475e-870d-e339b2f71040",
       "name": "Search Exercise Video",
@@ -124,7 +122,13 @@
       "position": [
         1200,
         160
-      ]
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "youtubeApiAuth",
+          "name": "YouTube API Auth"
+        }
+      }
     },
     {
       "parameters": {
@@ -158,13 +162,10 @@
         "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-lite:generateContent",
         "sendQuery": true,
         "queryParameters": {
-          "parameters": [
-            {
-              "name": "key",
-              "value": "AIzaSyBxSiqlPaFYdfsZ-QkrByGmkmaa7BPWEXA"
-            }
-          ]
+          "parameters": []
         },
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
         "sendBody": true,
         "contentType": "raw",
         "rawContentType": "application/json",
@@ -184,11 +185,17 @@
       "position": [
         480,
         160
-      ]
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "geminiApiAuth",
+          "name": "Gemini API Auth"
+        }
+      }
     },
     {
       "parameters": {
-        "jsCode": "const raw = $('Webhook Trigger').first().json;\nlet body;\nif (typeof raw.body === 'string') {\n  try { body = JSON.parse(raw.body); } catch(e) { body = raw.body; }\n} else {\n  body = raw.body || raw;\n}\n\nconst planType = body.planType || 'Workout Plan';\nconst isDiet   = planType.toLowerCase().includes('diet');\nconst daysRequested = String(body.daysPerWeek || '5 days');\nlet prompt;\n\nif (isDiet) {\n  prompt = 'Expert fitness coach at Airfit Gym. Create personalised Diet Plan.\\n\\n'\n    + 'CLIENT: ' + body.name + ' | ' + body.gender + ' | ' + body.age + 'yrs | '\n    + body.height + 'cm | ' + body.weight + 'kg | Goal: ' + body.goal + '\\n'\n    + 'Activity: ' + body.activityLevel + ' | Diet: ' + body.dietPreference\n    + ' | Food: ' + body.foodCulture + ' | Meals: ' + body.mealsPerDay\n    + ' | History: ' + body.previousWorkout + ' | Allergies: ' + (body.allergies || 'None') + '\\n\\n'\n    + 'Create a concise DIET PLAN:\\n1. Daily calorie target and macros\\n'\n    + '2. 7-day meal plan table (Day|Breakfast|Lunch|Dinner|Snacks)\\n'\n    + '3. Pre/post workout meals\\n4. Hydration\\n5. Top 5 foods to avoid\\n6. 3 supplements\\n'\n    + 'NO YouTube links.\\n\\nOUTPUT: raw HTML only, inline CSS, headings color:#ff6b00, '\n    + 'tables border-collapse rows #1a1a1a/#222 text #e0e0e0, '\n    + 'headers bg #ff6b00 white padding:10px, cells padding:10px border-bottom:1px solid #333. '\n    + 'Start: <p>Hi ' + body.name + '!</p>';\n} else {\n  prompt = 'You are an expert fitness coach at Airfit Gym. Build ONE reusable 7-day workout template for this client.\\n\\n'\n    + 'CLIENT: ' + body.name + ' | ' + body.gender + ' | ' + body.age + 'yrs | '\n    + body.height + 'cm | ' + body.weight + 'kg | Goal: ' + body.goal + '\\n'\n    + 'Activity: ' + body.activityLevel + ' | History: ' + (body.previousWorkout || 'Beginner') + '\\n'\n    + 'Gym Access: ' + (body.gymAccess || 'Full Gym') + ' | Days Available: ' + daysRequested + ' | Session: ' + (body.sessionLength || '45-60 min') + '\\n'\n    + 'Focus: ' + (body.focusArea || 'Full Body') + ' | Injuries/Limitations: ' + (body.injuries || 'None') + '\\n\\n'\n    + 'Return ONLY a valid JSON object. No markdown. No explanation. No code fences.\\n\\n'\n    + 'Required format:\\n'\n    + '{\"greeting\":\"Hi ' + body.name + '! [motivating sentence]\",'\n    + '\"overview\":\"[2 sentence overview explaining this one-week template repeats for the month]\",'\n    + '\"days\":[{\"day\":\"Monday\",\"muscle\":\"Chest & Triceps\",\"exercises\":['\n    + '{\"name\":\"Barbell Bench Press\",\"sets\":\"4\",\"reps\":\"8-10\"}'\n    + ']}],'\n    + '\"warmup\":[\"5 min light cardio\",\"Dynamic mobility\"],'\n    + '\"cooldown\":[\"Static stretch 30s\",\"Deep breathing\"],'\n    + '\"recoveryTips\":[\"Sleep 7-9 hours\",\"Stay hydrated\",\"Repeat this template weekly for 4 weeks\"]}\\n\\n'\n    + 'STRICT RULES:\\n'\n    + '- Exactly 7 day objects: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.\\n'\n    + '- Use the client Days Available to decide how many workout days; rest days must have \"muscle\":\"Rest\" and \"exercises\": [].\\n'\n    + '- Workout days must have 4-6 exercises tailored to goal, equipment, experience, focus area, and injuries.\\n'\n    + '- Each exercise must have accurate \"name\", \"sets\", and \"reps\" as strings.\\n'\n    + '- Do not include video IDs or links; the workflow will attach short YouTube demos.\\n'\n    + '- Output ONLY the JSON. Nothing else.';\n}\n\nreturn [{ json: {\n  geminiPayload: JSON.stringify({\n    contents: [{ parts: [{ text: prompt }] }],\n    generationConfig: { temperature: 0.65, maxOutputTokens: 4096 }\n  }),\n  clientId:    body.clientId   || '',\n  clientName:  body.name       || '',\n  clientEmail: body.email      || '',\n  clientPhone: body.phone      || '',\n  planType:    planType,\n  isDiet:      isDiet,\n  goal:        body.goal       || '',\n  gymAccess:   body.gymAccess  || 'Full Gym',\n  focusArea:   body.focusArea  || '',\n  injuries:    body.injuries   || '',\n  daysPerWeek: daysRequested,\n  sessionLength: body.sessionLength || ''\n}}];"
+        "jsCode": "const raw = $('Webhook Trigger').first().json;\nlet body;\nif (typeof raw.body === 'string') {\n  try { body = JSON.parse(raw.body); } catch(e) { body = raw.body; }\n} else {\n  body = raw.body || raw;\n}\n\nconst planType = body.planType || 'Workout Plan';\nconst isDiet   = planType.toLowerCase().includes('diet');\nconst daysRequested = String(body.daysPerWeek || '5 days');\nlet prompt;\n\nif (isDiet) {\n  prompt = 'Expert fitness coach at Airfit Gym. Create personalised Diet Plan.\\n\\n'\n    + 'CLIENT: ' + body.name + ' | ' + body.gender + ' | ' + body.age + 'yrs | '\n    + body.height + 'cm | ' + body.weight + 'kg | Goal: ' + body.goal + '\\n'\n    + 'Activity: ' + body.activityLevel + ' | Diet: ' + body.dietPreference\n    + ' | Food: ' + body.foodCulture + ' | Meals: ' + body.mealsPerDay\n    + ' | History: ' + body.previousWorkout + ' | Allergies: ' + (body.allergies || 'None') + '\\n\\n'\n    + 'Create a concise DIET PLAN:\\n1. Daily calorie target and macros\\n'\n    + '2. 7-day meal plan table (Day|Breakfast|Lunch|Dinner|Snacks)\\n'\n    + '3. Pre/post workout meals\\n4. Hydration\\n5. Top 5 foods to avoid\\n6. 3 supplements\\n'\n    + 'NO YouTube links.\\n\\nOUTPUT: raw HTML only, inline CSS, headings color:#ff6b00, '\n    + 'tables border-collapse rows #1a1a1a/#222 text #e0e0e0, '\n    + 'headers bg #ff6b00 white padding:10px, cells padding:10px border-bottom:1px solid #333. '\n    + 'Start: <p>Hi ' + body.name + '!</p>';\n} else {\n  prompt = 'You are an expert fitness coach at Airfit Gym. Build ONE reusable 7-day workout template for this client.\\n\\n'\n    + 'CLIENT: ' + body.name + ' | ' + body.gender + ' | ' + body.age + 'yrs | '\n    + body.height + 'cm | ' + body.weight + 'kg | Goal: ' + body.goal + '\\n'\n    + 'Activity: ' + body.activityLevel + ' | History: ' + (body.previousWorkout || 'Beginner') + '\\n'\n    + 'Gym Access: ' + (body.gymAccess || 'Full Gym') + ' | Days Available: ' + daysRequested + ' | Session: ' + (body.sessionLength || '45-60 min') + '\\n'\n    + 'Focus: ' + (body.focusArea || 'Full Body') + ' | Injuries/Limitations: ' + (body.injuries || 'None') + '\\n\\n'\n    + 'Return ONLY a valid JSON object. No markdown. No explanation. No code fences.\\n\\n'\n    + 'Required format:\\n'\n    + '{\"greeting\":\"Hi ' + body.name + '! [motivating sentence]\",'\n    + '\"overview\":\"[2 sentence overview explaining this one-week template repeats for the month]\",'\n    + '\"days\":[{\"day\":\"Monday\",\"muscle\":\"Chest & Triceps\",\"exercises\":['\n    + '{\"name\":\"Barbell Bench Press\",\"sets\":\"4\",\"reps\":\"8-10\"}'\n    + ']}],'\n    + '\"warmup\":[\"5 min light cardio\",\"Dynamic mobility\"],'\n    + '\"cooldown\":[\"Static stretch 30s\",\"Deep breathing\"],'\n    + '\"recoveryTips\":[\"Sleep 7-9 hours\",\"Stay hydrated\",\"Repeat this template weekly for 4 weeks\"]}\\n\\n'\n    + 'STRICT RULES:\\n'\n    + '- Exactly 7 day objects: Monday, Tuesday, Wednesday, Thursday, Friday, Saturday, Sunday.\\n'\n    + '- Use the client Days Available to decide how many workout days; rest days must have \"muscle\":\"Rest\" and \"exercises\": [].\\n'\n    + '- Workout days must have 4-6 exercises tailored to goal, equipment, experience, focus area, and injuries.\\n'\n    + '- Each exercise must have accurate \"name\", \"sets\", and \"reps\" as strings.\\n'\n    + '- Do not include video IDs or links; the workflow will attach short YouTube demos.\\n'\n    + '- Output ONLY the JSON. Nothing else.';\n}\n\nreturn [{ json: {\n  geminiPayload: JSON.stringify({\n    contents: [{ parts: [{ text: prompt }] }],\n    generationConfig: { temperature: 0.65, maxOutputTokens: 4096 }\n  }),\n  clientId:    body.clientId   || '',\n  clientName:  body.name       || '',\n  clientEmail: body.email      || '',\n  clientPhone: body.phone      || '',\n  age:         body.age        || '',\n  gender:      body.gender     || '',\n  planType:    planType,\n  isDiet:      isDiet,\n  goal:        body.goal       || '',\n  gymAccess:   body.gymAccess  || 'Full Gym',\n  focusArea:   body.focusArea  || '',\n  injuries:    body.injuries   || '',\n  daysPerWeek: daysRequested,\n  sessionLength: body.sessionLength || ''\n}}];"
       },
       "id": "e6c430da-cc09-4882-b836-b2e891a4ef7c",
       "name": "Build Gemini Prompt",
@@ -276,14 +283,12 @@
             {
               "name": "id",
               "value": "={{ ($json.items || []).map(item => item.id && item.id.videoId).filter(Boolean).join(',') }}"
-            },
-            {
-              "name": "key",
-              "value": "AIzaSyAKNvkI_PT0ol4-nR0efbfR_pez7chQ3uA"
             }
           ]
         },
-        "options": {}
+        "options": {},
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth"
       },
       "id": "validate-exercise-videos-airfit",
       "name": "Validate Exercise Videos",
@@ -292,7 +297,13 @@
       "position": [
         1440,
         160
-      ]
+      ],
+      "credentials": {
+        "httpQueryAuth": {
+          "id": "youtubeApiAuth",
+          "name": "YouTube API Auth"
+        }
+      }
     },
     {
       "parameters": {
@@ -328,7 +339,13 @@
             "node": "Save Plan to Store",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Save Plan to Store": {
+      "main": [
+        [
           {
             "node": "Send Plan Ready Email",
             "type": "main",
