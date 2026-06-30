@@ -23,10 +23,9 @@ export async function sendPortalInvite({ name, email, phone }) {
         const res = await fetch(ENDPOINTS.INVITE, {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
+                'Content-Type': 'application/x-www-form-urlencoded'
             },
-            body: JSON.stringify(payload)
+            body: new URLSearchParams(payload).toString()
         });
 
         if (!res.ok) {

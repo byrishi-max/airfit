@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "n8n-mcp": {
+      "type": "http",
+      "serverURL": "https://airfitplangen.duckdns.org/mcp-server/http",
+      "headers": {
+        "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJiZjk4NTk4Ny00YWE2LTRmMTYtOTA1Ny02NDM3M2RkNzY1YjIiLCJpc3MiOiJuOG4iLCJhdWQiOiJtY3Atc2VydmVyLWFwaSIsImp0aSI6Ijg2M2FlODc2LTExYjUtNDJkOS1hOWZkLWFjYjNjOWI5NzM3YSIsImlhdCI6MTc3ODM1MzYwMH0.imQC8uHpMLXMzcPz4lIZEK4jAhL1somTU0xCIF9R4wI"
+      }
+    }
+  }
+}

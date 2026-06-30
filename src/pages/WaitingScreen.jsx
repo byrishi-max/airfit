@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Sparkles, Activity, Clock, CheckCircle2 } from 'lucide-react';
 
 const WAITING_TIPS = [
     "Analyzing your equipment availability...",
@@ -16,28 +18,13 @@ export default function WaitingScreen() {
     const { client } = useClientAuth();
     const navigate = useNavigate();
     const { planStatus, checkPlan, isLoading } = useClientPlan(client?.clientId);
-    const [dots, setDots] = useState('');
-    const [showRefresh, setShowRefresh] = useState(false);
     const [tipIndex, setTipIndex] = useState(0);
 
     useEffect(() => {
-        const dotInterval = setInterval(() => {
-            setDots(prev => (prev.length >= 3 ? '' : prev + '.'));
-        }, 800);
-        
         const tipInterval = setInterval(() => {
             setTipIndex(prev => (prev + 1) % WAITING_TIPS.length);
-        }, 4000);
-        
-        const refreshTimer = setTimeout(() => {
-            setShowRefresh(true);
-        }, 12000);
-
-        return () => {
-            clearInterval(dotInterval);
-            clearInterval(tipInterval);
-            clearTimeout(refreshTimer);
-        };
+        }, 3500);
+        return () => clearInterval(tipInterval);
     }, []);
 
     useEffect(() => {
@@ -46,212 +33,122 @@ export default function WaitingScreen() {
         }
     }, [planStatus, navigate]);
 
-    const handleManualCheck = async () => {
-        const ready = await checkPlan();
-        if (!ready) {
-            // If still not ready, show a small toast or feedback?
-            // For now, the button states handle it
-        }
-    };
-
     return (
         <div style={{
-            minHeight: '100vh',
-            background: '#050505',
-            color: '#ffffff',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontFamily: "'Inter', sans-serif",
-            position: 'relative',
-            overflow: 'hidden'
+            minHeight: '100vh', background: 'var(--fit-bg)', color: 'var(--fit-text)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
+            position: 'relative', overflow: 'hidden'
         }}>
             {/* Ambient Background Glows */}
             <div style={{
-                position: 'fixed',
-                top: '50%',
-                left: '50%',
-                transform: 'translate(-50%, -50%)',
-                width: '600px',
-                height: '600px',
-                background: 'radial-gradient(circle at center, rgba(255,107,0,0.05), transparent 70%)',
-                filter: 'blur(80px)',
-                zIndex: 0
-            }}></div>
+                position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)',
+                width: '70vw', height: '70vw',
+                background: 'radial-gradient(circle, rgba(255,94,0,0.06) 0%, transparent 60%)',
+                filter: 'blur(60px)', zIndex: 0, pointerEvents: 'none'
+            }} />
 
-            {/* Pulsing Core Animation */}
-            <div style={{ position: 'relative', zIndex: 10, textAlign: 'center' }}>
-                <div style={{
-                    width: '120px',
-                    height: '120px',
-                    margin: '0 auto 40px',
-                    position: 'relative'
-                }}>
-                    {/* Ring 1 - Deep */}
-                    <div style={{
-                        position: 'absolute', inset: 0, borderRadius: '50%',
-                        border: '2px solid rgba(255,107,0,0.1)',
-                        animation: 'pulse-ring 3s infinite ease-out'
-                    }}></div>
-                    {/* Ring 2 - Mid */}
-                    <div style={{
-                        position: 'absolute', inset: '10px', borderRadius: '50%',
-                        border: '2px solid rgba(255,107,0,0.2)',
-                        animation: 'pulse-ring 3s infinite ease-out 0.5s'
-                    }}></div>
-                    {/* Inner Gear/Logo Placeholder */}
-                    <div style={{
-                        position: 'absolute', inset: '25px', borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #FF6B00, #E05E00)',
-                        boxShadow: '0 0 30px rgba(255,107,0,0.4)',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: '32px', color: '#000000', fontWeight: '900'
-                    }}>
-                        PRO
-                    </div>
+            <motion.div
+                initial={{ opacity: 0, y: 30 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, ease: [0.16, 1, 0.3, 1] }}
+                style={{
+                    position: 'relative', zIndex: 10, width: '100%', maxWidth: '520px',
+                    padding: '24px', display: 'flex', flexDirection: 'column', alignItems: 'center',
+                    textAlign: 'center'
+                }}
+            >
+                {/* Loader Animation */}
+                <div style={{ position: 'relative', width: '140px', height: '140px', marginBottom: '40px' }}>
+                    <motion.div
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 8, ease: 'linear', repeat: Infinity }}
+                        style={{
+                            position: 'absolute', inset: 0, borderRadius: '50%',
+                            border: '1px dashed rgba(255,94,0,0.3)',
+                        }}
+                    />
+                    <motion.div
+                        animate={{ rotate: -360 }}
+                        transition={{ duration: 12, ease: 'linear', repeat: Infinity }}
+                        style={{
+                            position: 'absolute', inset: '12px', borderRadius: '50%',
+                            border: '2px solid transparent',
+                            borderTopColor: 'rgba(255,94,0,0.6)',
+                            borderBottomColor: 'rgba(255,94,0,0.2)',
+                        }}
+                    />
+                    <motion.div
+                        animate={{ scale: [1, 1.1, 1] }}
+                        transition={{ duration: 2, ease: 'easeInOut', repeat: Infinity }}
+                        style={{
+                            position: 'absolute', inset: '28px', borderRadius: '50%',
+                            background: 'linear-gradient(135deg, #ff6a1f, #ff4c00)',
+                            boxShadow: '0 0 32px rgba(255,94,0,0.4)',
+                            display: 'grid', placeItems: 'center', color: '#fff'
+                        }}
+                    >
+                        <Sparkles size={36} strokeWidth={1.5} />
+                    </motion.div>
                 </div>
 
                 <h2 style={{
-                    fontSize: '28px',
-                    fontWeight: '800',
-                    letterSpacing: '-0.02em',
-                    marginBottom: '16px'
+                    fontSize: '32px', fontWeight: '900', letterSpacing: '-0.03em',
+                    margin: '0 0 16px', background: 'linear-gradient(135deg, #fff, #a1a1aa)',
+                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
                 }}>
-                    {isLoading ? 'Checking Server...' : `Curating Your Plan${dots}`}
+                    Curating Your Plan...
                 </h2>
-                <div style={{
-                    background: 'rgba(34,197,94,0.08)',
-                    border: '1px solid rgba(34,197,94,0.25)',
-                    color: '#a7f3d0',
-                    padding: '12px 16px',
-                    borderRadius: '10px',
-                    fontSize: '13px',
-                    fontWeight: 600,
-                    margin: '0 auto 18px',
-                    maxWidth: 480
-                }}>
-                    You can exit now — your plan will be emailed to <span style={{ color: '#34d399' }}>{client?.email || 'your registered email'}</span> when it’s ready.
-                </div>
-                
-                <div style={{ 
-                    height: '24px', 
-                    marginBottom: '40px',
-                    color: '#ff6b00',
-                    fontSize: '14px',
-                    fontWeight: '600',
-                    transition: 'all 0.5s ease'
-                }}>
-                    {WAITING_TIPS[tipIndex]}
+
+                <AnimatePresence mode="wait">
+                    <motion.div
+                        key={tipIndex}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        transition={{ duration: 0.4 }}
+                        style={{ color: 'var(--fit-orange)', fontSize: '15px', fontWeight: '700', minHeight: '24px', marginBottom: '32px' }}
+                    >
+                        {WAITING_TIPS[tipIndex]}
+                    </motion.div>
+                </AnimatePresence>
+
+                {/* Progress Track */}
+                <div style={{ width: '100%', maxWidth: '340px', height: '6px', background: 'rgba(255,255,255,0.06)', borderRadius: '999px', overflow: 'hidden', position: 'relative', marginBottom: '32px' }}>
+                    <motion.div
+                        animate={{ x: ['-100%', '200%'] }}
+                        transition={{ duration: 1.5, ease: 'easeInOut', repeat: Infinity }}
+                        style={{
+                            position: 'absolute', left: 0, top: 0, bottom: 0, width: '40%',
+                            background: 'linear-gradient(90deg, transparent, var(--fit-orange), transparent)',
+                        }}
+                    />
                 </div>
 
-                {/* Progress Bar Container */}
-                <div style={{
-                    width: '320px',
-                    height: '4px',
-                    background: 'rgba(255,255,255,0.05)',
-                    borderRadius: '2px',
-                    margin: '0 auto',
-                    overflow: 'hidden',
-                    position: 'relative'
+                <div className="glass-panel" style={{
+                    width: '100%', padding: '20px', borderRadius: '16px',
+                    display: 'flex', alignItems: 'flex-start', gap: '14px', textAlign: 'left'
                 }}>
-                    <div style={{
-                        position: 'absolute',
-                        left: '-100%',
-                        width: '100%',
-                        height: '100%',
-                        background: 'linear-gradient(90deg, transparent, #FF6B00, transparent)',
-                        animation: isLoading ? 'progress-shimmer 0.8s infinite linear' : 'progress-shimmer 2s infinite linear'
-                    }}></div>
-                </div>
-                <div style={{ display: 'flex', gap: '10px', justifyContent: 'center', marginTop: '18px' }}>
-                    <button
-                        onClick={() => navigate('/client/dashboard')}
-                        style={{
-                            background: 'rgba(255,255,255,0.06)',
-                            border: '1px solid rgba(255,255,255,0.12)',
-                            color: '#ddd',
-                            padding: '10px 18px',
-                            borderRadius: '10px',
-                            fontSize: '13px',
-                            fontWeight: 700,
-                            cursor: 'pointer'
-                        }}
-                    >
-                        ← Back to Dashboard
-                    </button>
-                    <button
-                        onClick={() => navigate('/client/login')}
-                        style={{
-                            background: 'linear-gradient(135deg, #FF6B00 0%, #ff4500 100%)',
-                            border: 'none',
-                            color: '#fff',
-                            padding: '10px 18px',
-                            borderRadius: '10px',
-                            fontSize: '13px',
-                            fontWeight: 800,
-                            cursor: 'pointer'
-                        }}
-                    >
-                        Exit Now
-                    </button>
-                </div>
-
-                {showRefresh && (
-                    <div style={{ marginTop: '40px', animation: 'fade-in 0.5s ease' }}>
-                        <button 
-                            onClick={handleManualCheck}
-                            disabled={isLoading}
-                            style={{
-                                background: isLoading ? 'rgba(255,107,0,0.05)' : 'transparent',
-                                border: '1px solid #FF6B00',
-                                color: '#FF6B00',
-                                padding: '12px 28px',
-                                borderRadius: '30px',
-                                fontSize: '14px',
-                                fontWeight: '700',
-                                cursor: 'pointer',
-                                transition: 'all 0.3s cubic-bezier(0.16, 1, 0.3, 1)',
-                                opacity: isLoading ? 0.5 : 1
-                            }}
-                        >
-                            {isLoading ? 'Syncing...' : 'Check Status Now'}
-                        </button>
-                        <p style={{ marginTop: '16px', color: '#666', fontSize: '13px', maxWidth: '300px', margin: '16px auto 0' }}>
-                            If it takes more than 1 minute, our coaches may still be refining your plan. Try refreshing the page.
+                    <div style={{ flex: '0 0 40px', width: '40px', height: '40px', borderRadius: '10px', background: 'rgba(34,197,94,0.1)', display: 'grid', placeItems: 'center', color: '#22c55e' }}>
+                        <CheckCircle2 size={20} />
+                    </div>
+                    <div>
+                        <strong style={{ display: 'block', color: 'var(--fit-text)', fontSize: '15px', marginBottom: '4px' }}>Safe to leave this screen</strong>
+                        <p style={{ margin: 0, color: 'var(--fit-muted)', fontSize: '13px', lineHeight: '1.5' }}>
+                            Your customized plan is generating securely on our servers. You can exit now and we’ll email a direct link to <span style={{ color: '#fff', fontWeight: '600' }}>{client?.email || 'your registered email'}</span> once it's ready.
                         </p>
                     </div>
-                )}
-
-                <div style={{
-                    marginTop: '60px',
-                    fontSize: '13px',
-                    color: '#ff6b00',
-                    fontWeight: '700',
-                    letterSpacing: '2px',
-                    textTransform: 'uppercase',
-                    opacity: 0.8
-                }}>
-                    Optimization in Progress
                 </div>
-            </div>
 
-            <style>{`
-                @keyframes pulse-ring {
-                    0% { transform: scale(0.6); opacity: 0; }
-                    50% { opacity: 0.5; }
-                    100% { transform: scale(1.6); opacity: 0; }
-                }
-                @keyframes progress-shimmer {
-                    0% { left: -100%; }
-                    100% { left: 100%; }
-                }
-                @keyframes fade-in {
-                    from { opacity: 0; transform: translateY(10px); }
-                    to { opacity: 1; transform: translateY(0); }
-                }
-                body { margin: 0; }
-            `}</style>
+                <div style={{ marginTop: '24px' }}>
+                    <button onClick={() => navigate('/client/dashboard')} style={{
+                        background: 'transparent', border: 'none', color: 'var(--fit-dim)', fontSize: '13px',
+                        fontWeight: '700', cursor: 'pointer', padding: '8px 16px', borderRadius: '8px',
+                        transition: 'color 0.2s, background 0.2s'
+                    }} onMouseOver={e => { e.currentTarget.style.color = '#fff'; e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }} onMouseOut={e => { e.currentTarget.style.color = 'var(--fit-dim)'; e.currentTarget.style.background = 'transparent'; }}>
+                        Return to Dashboard
+                    </button>
+                </div>
+            </motion.div>
         </div>
     );
 }

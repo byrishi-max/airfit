@@ -1,81 +1,78 @@
+import { supabase } from './supabaseClient';
 import { parseWorkoutPlan, normalizePlanType } from './planUtils';
-import { isSupabaseConfigured, supabaseRequest } from './supabaseClient';
+import { ENDPOINTS } from './config';
 
 export async function getPlansForClient(clientId) {
-  if (!isSupabaseConfigured || !clientId) return [];
-  return supabaseRequest(`plans?client_id=eq.${encodeURIComponent(clientId)}&select=*&order=updated_at.desc`);
+  if (!clientId) return {};
+
+  const { data, error } = await supabase.from('plans').select('*').eq('client_id', clientId);
+  if (error || !data) return {};
+
+  const workout = data.find(p => p.type === 'Workout Plan' || p.type === 'workout');
+  const diet = data.find(p => p.type === 'Diet Plan' || p.type === 'diet');
+
+  const ready = data.some(p => p.status === 'ready');
+  const pending = data.some(p => p.status === 'pending');
+
+  return {
+    workoutPlan: workout?.content ? parseWorkoutPlan(workout.content) : null,
+    dietPlan: diet?.content || null,
+    workoutStatus: workout?.status || 'none',
+    dietStatus: diet?.status || 'none',
+    workoutGeneratedAt: workout?.generated_at || null,
+    dietGeneratedAt: diet?.generated_at || null,
+    planStatus: ready ? 'ready' : pending ? 'pending' : 'none',
+  };
 }
 
 export async function getClientPlans(clientId) {
-  const rows = await getPlansForClient(clientId);
-  const workout = rows.find(row => row.plan_type === 'workout');
-  const diet = rows.find(row => row.plan_type === 'diet');
+  const plans = await getPlansForClient(clientId);
   return {
-    workoutPlan: parseWorkoutPlan(workout?.workout_json),
-    dietPlan: diet?.diet_html || null,
-    workoutStatus: workout?.status || 'none',
-    dietStatus: diet?.status || 'none',
-    workoutGeneratedAt: workout?.generated_at || workout?.created_at || null,
-    dietGeneratedAt: diet?.generated_at || diet?.created_at || null,
-    planStatus: workout?.status === 'ready' || diet?.status === 'ready'
-      ? 'ready'
-      : rows.some(row => row.status === 'pending' || row.status === 'processing')
-        ? 'pending'
-        : 'none',
+    workoutPlan: plans.workoutPlan || null,
+    dietPlan: plans.dietPlan || null,
+    workoutStatus: plans.workoutStatus || 'none',
+    dietStatus: plans.dietStatus || 'none',
+    workoutGeneratedAt: plans.workoutGeneratedAt || null,
+    dietGeneratedAt: plans.dietGeneratedAt || null,
+    planStatus: plans.planStatus || 'none',
   };
 }
 
 export async function markPlanPending(clientId, planType) {
-  if (!isSupabaseConfigured || !clientId) return null;
-
+  if (!clientId) return null;
   const normalized = normalizePlanType(planType);
-  return supabaseRequest('plans?on_conflict=client_id,plan_type', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({
-      client_id: clientId,
-      plan_type: normalized,
-      status: 'pending',
-      updated_at: new Date().toISOString(),
-    }),
-  });
+  const typeStr = normalized === 'diet' ? 'Diet Plan' : 'Workout Plan';
+  
+  const { data, error } = await supabase.from('plans').upsert({
+    client_id: clientId,
+    type: typeStr,
+    status: 'pending',
+  }, { onConflict: 'client_id, type' }).select().single();
+  
+  if (error) console.warn('[AirFit] Remote pending state skipped:', error);
+  return data;
 }
 
 export async function saveGeneratedPlan(clientId, data) {
-  if (!isSupabaseConfigured || !clientId) return null;
+  // This is usually called by the webhook from n8n.
+  // But if the frontend calls it:
+  if (!clientId) return null;
 
   const normalized = normalizePlanType(data.planType || (data.isDiet ? 'diet' : 'workout'));
-  const rows = [];
+  const typeStr = normalized === 'diet' ? 'Diet Plan' : 'Workout Plan';
+  const content = normalized === 'diet' ? (data.dietHtml || data.planHtml) : (data.workoutJson ? parseWorkoutPlan(data.workoutJson) : null);
 
-  if (data.workoutJson || normalized === 'workout') {
-    rows.push({
-      client_id: clientId,
-      plan_type: 'workout',
-      status: 'ready',
-      workout_json: parseWorkoutPlan(data.workoutJson),
-      diet_html: null,
-      generated_at: data.generatedAt || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+  const { error } = await supabase.from('plans').upsert({
+    client_id: clientId,
+    type: typeStr,
+    content: content,
+    status: 'ready',
+    generated_at: new Date().toISOString()
+  }, { onConflict: 'client_id, type' });
+
+  if (error) {
+    console.warn('[AirFit] Remote plan save failed:', error);
+    return null;
   }
-
-  if (data.dietHtml || normalized === 'diet') {
-    rows.push({
-      client_id: clientId,
-      plan_type: 'diet',
-      status: 'ready',
-      workout_json: null,
-      diet_html: data.dietHtml || null,
-      generated_at: data.generatedAt || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
-  }
-
-  if (!rows.length) return null;
-
-  return supabaseRequest('plans?on_conflict=client_id,plan_type', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(rows),
-  });
+  return true;
 }

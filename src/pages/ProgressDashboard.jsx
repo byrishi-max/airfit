@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, CalendarCheck, Dumbbell, Flame, Home, TrendingUp } from 'lucide-react';
+import { ArrowLeft, CalendarCheck, Droplets, Dumbbell, Flame, Home, Scale, Utensils, TrendingUp } from 'lucide-react';
 import { Helmet } from 'react-helmet-async';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
@@ -20,6 +20,13 @@ const emptySummary = {
     todayCalories: 0,
     weekCalories: 0,
     monthCalories: 0,
+    dietDoneToday: false,
+    dietMealsCompleted: 0,
+    dietMealTarget: 4,
+    waterToday: 0,
+    waterTarget: 3000,
+    latestWeight: null,
+    unifiedPercent: 0,
 };
 
 export default function ProgressDashboard() {
@@ -90,17 +97,20 @@ export default function ProgressDashboard() {
             <main className="fit-dashboard fit-home-main">
                 <section className="fit-home-hero">
                     <p className="fit-kicker">Monthly Analytics</p>
-                    <h2>{isLoading ? 'Syncing progress...' : `${monthlyCompletion}% complete`}</h2>
+                    <h2>{isLoading ? 'Syncing progress...' : `${summary.unifiedPercent || monthlyCompletion}% synced`}</h2>
                     <p>
-                        Your one-week workout template repeats through the month. Analytics below combine all four repeats.
+                        Workout, diet, calories, water, weight, and streaks are combined from your saved progress records.
                     </p>
                 </section>
 
                 <section className="fit-analytics-grid" aria-label="Progress analytics">
-                    <MetricCard icon={TrendingUp} label="Month Completion" value={`${monthlyCompletion}%`} detail={`${summary.monthlyDone}/${summary.monthlyTotal} exercises`} />
+                    <MetricCard icon={TrendingUp} label="Unified Progress" value={`${summary.unifiedPercent || monthlyCompletion}%`} detail="Workout and diet combined" />
                     <MetricCard icon={Dumbbell} label={`Repeat Week ${summary.currentWeek}`} value={`${currentWeekCompletion}%`} detail={`${summary.currentWeekDone}/${summary.currentWeekTotal} exercises`} />
                     <MetricCard icon={CalendarCheck} label="Done Days" value={`${summary.completedDays}`} detail={`${summary.totalDays} workout days this month`} />
+                    <MetricCard icon={Utensils} label="Diet Today" value={summary.dietDoneToday ? 'Done' : `${summary.dietMealsCompleted}/${summary.dietMealTarget}`} detail="Meals completed" />
                     <MetricCard icon={Flame} label="Calories" value={`${summary.todayCalories}`} detail={`${summary.weekCalories} week / ${summary.monthCalories} month kcal`} />
+                    <MetricCard icon={Droplets} label="Water" value={`${Math.round((summary.waterToday || 0) / 100) / 10}L`} detail={`${summary.waterTarget || 3000} ml target`} />
+                    <MetricCard icon={Scale} label="Weight" value={summary.latestWeight ? `${summary.latestWeight} kg` : 'No log'} detail="Latest check-in" />
                 </section>
 
                 <section className="fit-progress-layout">

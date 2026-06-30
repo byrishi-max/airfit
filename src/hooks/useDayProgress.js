@@ -12,8 +12,8 @@ import {
  */
 export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1) => {
     // We use a simple composite key for storage
-    const storageKey = `airfit_progress_${clientId}_${dayKey}`;
-    const dayDoneKey = `airfit_daydone_${clientId}_${dayKey}`;
+    const storageKey = `airfit_progress_${clientId}_w${weekNumber}_${dayKey}`;
+    const dayDoneKey = `airfit_daydone_${clientId}_w${weekNumber}_${dayKey}`;
 
     // Helper to get freshest data
     const getSavedProgress = () => {
@@ -73,6 +73,10 @@ export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1)
                 [exerciseName]: nextValue
             };
         });
+        if (!nextValue && dayDone) {
+            setDayDone(false);
+            localStorage.removeItem(dayDoneKey);
+        }
         setExerciseProgress({
             clientId,
             weekNumber,

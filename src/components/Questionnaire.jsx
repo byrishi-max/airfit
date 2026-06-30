@@ -1,8 +1,10 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Rocket, Send, Loader2 } from "lucide-react";
+import { Rocket, Loader2 } from "lucide-react";
 import { useClientPlan } from "../hooks/useClientPlan";
 import { ENDPOINTS } from "../utils/config";
+import { generateDietPlanHtml } from "../utils/dietGenerator";
+import { saveGeneratedPlan } from "../utils/planRepository";
 
 const SHARED = [
     { key: "name", label: "Full Name", type: "text", placeholder: "e.g. Rahul Sharma" },
@@ -70,9 +72,11 @@ const css = `
 
 function Questionnaire({ planType, client, onCancel }) {
     const navigate = useNavigate();
-    const { markPending } = useClientPlan(client.clientId);
+    const { markPending, checkPlan } = useClientPlan(client.clientId);
     const [step, setStep] = useState(1);
     const [loading, setLoading] = useState(false);
+    const [submitStatus, setSubmitStatus] = useState('');
+    const [submitError, setSubmitError] = useState('');
     const [form, setForm] = useState({
         clientId: client.clientId,
         planType: planType,
@@ -104,25 +108,48 @@ function Questionnaire({ planType, client, onCancel }) {
     const back = () => step > 1 ? (setStep(s => s - 1), scrollTop()) : onCancel();
 
     const submit = async () => {
+        if (loading) return;
         setLoading(true);
-        const headers = { "Content-Type": "application/json" };
-        if (process.env.REACT_APP_API_TOKEN) {
-            headers.Authorization = `Bearer ${process.env.REACT_APP_API_TOKEN}`;
-        }
-
+        setSubmitError('');
+        
         try {
-            await fetch(ENDPOINTS.SUBMIT_PLAN, {
+            if (isDiet) {
+                setSubmitStatus('Generating personalized diet plan locally...');
+                const dietHtml = generateDietPlanHtml(form);
+                await saveGeneratedPlan(form.clientId, { isDiet: true, dietHtml, planType: form.planType });
+                await checkPlan(); // Refresh state immediately
+                setSubmitStatus('Plan generated successfully!');
+                navigate('/client/dashboard'); // Go straight to dashboard
+                return;
+            }
+
+            // Workout plan still uses webhook
+            setSubmitStatus('Submitting your answers...');
+            const headers = { "Content-Type": "application/x-www-form-urlencoded" };
+            if (process.env.REACT_APP_API_TOKEN) {
+                headers.Authorization = `Bearer ${process.env.REACT_APP_API_TOKEN}`;
+            }
+
+            const response = await fetch(ENDPOINTS.SUBMIT_PLAN, {
                 method: "POST",
                 headers,
-                body: JSON.stringify(form),
+                body: new URLSearchParams(form).toString(),
             });
+            if (!response.ok) {
+                const text = await response.text().catch(() => '');
+                throw new Error(text || `Submission failed with status ${response.status}`);
+            }
+            setSubmitStatus('Generation started. Saving pending status...');
+            markPending(planType);
+            setSubmitStatus('Waiting for plan and email delivery...');
+            navigate('/client/waiting');
         } catch (e) {
-            // Log the error but continue; the UI will still navigate to the waiting screen
             console.warn('Failed to submit plan:', e);
+            setSubmitError('We could not start plan generation. Please check your connection and try again.');
+            setSubmitStatus('');
+        } finally {
+            setLoading(false);
         }
-        markPending(planType);
-        setLoading(false);
-        navigate('/client/waiting');
     };
 
     const renderFields = (fields) => (
@@ -201,6 +228,19 @@ function Questionnaire({ planType, client, onCancel }) {
                 </div>
             )}
 
+            {submitStatus && (
+                <div className="fit-submit-status" role="status">
+                    <Loader2 size={16} className="animate-spin" />
+                    <span>{submitStatus}</span>
+                </div>
+            )}
+
+            {submitError && (
+                <div className="fit-submit-error" role="alert">
+                    {submitError}
+                </div>
+            )}
+
             {/* Navigation */}
             <div style={{ display: 'flex', gap: '12px', marginTop: '40px' }}>
                 <button onClick={back} style={{
@@ -210,11 +250,11 @@ function Questionnaire({ planType, client, onCancel }) {
                     {step === 1 ? 'Cancel' : '← Back'}
                 </button>
                 {step < TOTAL_STEPS ? (
-                    <button onClick={next} disabled={!canNext()} style={{
+                    <button onClick={next} disabled={!canNext() || loading} style={{
                         flex: 1, padding: '15px 24px', borderRadius: '8px', border: 'none',
-                        background: canNext() ? 'linear-gradient(135deg, #FF6B00 0%, #ff4500 100%)' : '#2a2a2a',
-                        color: canNext() ? '#fff' : '#666', fontSize: '15px', fontWeight: '700',
-                        cursor: canNext() ? 'pointer' : 'not-allowed', fontFamily: "'Sora', sans-serif"
+                        background: canNext() && !loading ? 'linear-gradient(135deg, #FF6B00 0%, #ff4500 100%)' : '#2a2a2a',
+                        color: canNext() && !loading ? '#fff' : '#666', fontSize: '15px', fontWeight: '700',
+                        cursor: canNext() && !loading ? 'pointer' : 'not-allowed', fontFamily: "'Sora', sans-serif"
                     }}>
                         Continue →
                     </button>
@@ -226,7 +266,7 @@ function Questionnaire({ planType, client, onCancel }) {
                         cursor: loading ? 'not-allowed' : 'pointer', fontFamily: "'Sora', sans-serif",
                         display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px'
                     }}>
-                        {loading ? <><Loader2 size={18} className="animate-spin" /> Submitting...</> : <><Rocket size={18} /> Generate My Plan</>}
+                        {loading ? <><Loader2 size={18} className="animate-spin" /> Processing...</> : <><Rocket size={18} /> Generate My Plan</>}
                     </button>
                 )}
             </div>

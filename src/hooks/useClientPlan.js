@@ -24,6 +24,24 @@ function parseWorkout(raw) {
     }
 }
 
+function normalizePlanResponse(data = {}) {
+    if (Array.isArray(data.plans)) {
+        const workout = data.plans.find(plan => String(plan.planType || plan.plan_type || '').toLowerCase().includes('workout'));
+        const diet = data.plans.find(plan => String(plan.planType || plan.plan_type || '').toLowerCase().includes('diet'));
+        const ready = data.plans.some(plan => plan.status === 'ready');
+        const pending = data.plans.some(plan => plan.status === 'pending' || plan.status === 'processing');
+        return {
+            ...data,
+            status: ready ? 'ready' : pending ? 'pending' : (data.status || 'none'),
+            workoutJson: workout?.workoutJson || workout?.workout_json || data.workoutJson || null,
+            dietHtml: diet?.dietHtml || diet?.diet_html || data.dietHtml || null,
+            planType: workout ? 'Workout Plan' : diet ? 'Diet Plan' : data.planType,
+            generatedAt: workout?.generatedAt || workout?.generated_at || diet?.generatedAt || diet?.generated_at || data.generatedAt,
+        };
+    }
+    return data;
+}
+
 export function useClientPlan(clientId) {
     const [planStatus, setPlanStatus] = useState('none');
     const [workoutPlan, setWorkoutPlan] = useState(null);
@@ -47,8 +65,8 @@ export function useClientPlan(clientId) {
             const idx = clients.findIndex(c => c.clientId === clientId);
             if (idx !== -1) {
                 clients[idx].planStatus = 'ready';
-                clients[idx].workoutPlan = parsed;
-                clients[idx].dietPlan = data.dietHtml || null;
+                if (parsed) clients[idx].workoutPlan = parsed;
+                if (data.dietHtml) clients[idx].dietPlan = data.dietHtml;
                 clients[idx].planType = data.planType || '';
                 clients[idx].planReadyAt = data.generatedAt || new Date().toISOString();
                 localStorage.setItem('airfit_clients', JSON.stringify(clients));
@@ -57,8 +75,8 @@ export function useClientPlan(clientId) {
         } catch (e) {
             console.error('Failed to save plan to storage:', e);
         }
-        setWorkoutPlan(parsed);
-        setDietPlan(data.dietHtml || null); // Save diet plan to state
+        setWorkoutPlan(current => parsed || current);
+        setDietPlan(current => data.dietHtml || current);
         if (data.workoutJson) setWorkoutGeneratedAt(data.generatedAt || new Date().toISOString());
         if (data.dietHtml) setDietGeneratedAt(data.generatedAt || new Date().toISOString());
         setPlanStatus('ready');
@@ -84,7 +102,7 @@ export function useClientPlan(clientId) {
                 return false;
             }
             
-            const data = await response.json();
+            const data = normalizePlanResponse(await response.json());
             
             console.log('[AirFit] Status check response:', { // Updated log
                 status: data.status,

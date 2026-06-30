@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { Activity, ArrowLeft, Dumbbell, Flame, LogOut, Utensils } from 'lucide-react';
+import { Activity, ArrowLeft, CheckCircle2, Dumbbell, Flame, LogOut, Utensils } from 'lucide-react';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
 import CalorieTracker from '../components/CalorieTracker';
@@ -8,7 +8,7 @@ import ExerciseCard from '../components/ExerciseCard';
 import ProgressBar from '../components/ProgressBar';
 import Questionnaire from '../components/Questionnaire';
 import { useDayProgress } from '../hooks/useDayProgress';
-import { getCurrentRepeatWeek } from '../utils/progressRepository';
+import { getCurrentRepeatWeek, getDietProgress, saveDietProgress } from '../utils/progressRepository';
 
 const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 const DAY_LABELS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
@@ -46,9 +46,36 @@ const FALLBACK_WORKOUT = {
                 { name: 'Leg Press', sets: '3', reps: '12', videoId: 'IZxyjW7MPJQ' },
             ],
         },
-        { day: 'Thursday', muscle: 'Shoulders & Core', exercises: [] },
-        { day: 'Friday', muscle: 'Upper Body', exercises: [] },
-        { day: 'Saturday', muscle: 'Conditioning', exercises: [] },
+        {
+            day: 'Thursday',
+            muscle: 'Shoulders & Core',
+            exercises: [
+                { name: 'Overhead Press', sets: '4', reps: '8-10', videoId: '2yjwXTZQDDI' },
+                { name: 'Lateral Raise', sets: '3', reps: '12-15', videoId: '3VcKaXpzqRo' },
+                { name: 'Cable Crunch', sets: '3', reps: '12-15', videoId: 'AV5PmZJIrrw' },
+                { name: 'Plank', sets: '3', reps: '45 sec', videoId: 'pSHjTRCQxIw' },
+            ],
+        },
+        {
+            day: 'Friday',
+            muscle: 'Upper Body Volume',
+            exercises: [
+                { name: 'Dumbbell Shoulder Press', sets: '3', reps: '10-12', videoId: 'B-aVuyhvLHU' },
+                { name: 'Chest Supported Row', sets: '3', reps: '10-12', videoId: 'GZbfZ033f74' },
+                { name: 'Push-Up', sets: '3', reps: 'AMRAP', videoId: 'IODxDxX7oi4' },
+                { name: 'Hammer Curl', sets: '3', reps: '12', videoId: 'zC3nLlEvin4' },
+            ],
+        },
+        {
+            day: 'Saturday',
+            muscle: 'Legs & Conditioning',
+            exercises: [
+                { name: 'Goblet Squat', sets: '3', reps: '12', videoId: 'MeIiIdhvXT4' },
+                { name: 'Walking Lunge', sets: '3', reps: '12 each', videoId: 'L8fvypPrzzs' },
+                { name: 'Kettlebell Swing', sets: '4', reps: '15', videoId: 'YSxHifyI6s8' },
+                { name: 'Farmer Carry', sets: '3', reps: '30 sec', videoId: 'rt17lmnaLSM' },
+            ],
+        },
         { day: 'Sunday', muscle: 'Rest', exercises: [] },
     ],
 };
@@ -78,11 +105,14 @@ function ensureParsed(plan) {
 function normalizeDays(plan) {
     const sourceDays = plan?.days?.length ? plan.days : FALLBACK_WORKOUT.days;
     return STANDARD_DAYS.map((dayName, index) => {
+        if (dayName === 'Sunday') {
+            return { day: 'Sunday', muscle: 'Rest', exercises: [] };
+        }
         const matched = sourceDays.find(day =>
             day?.day?.toLowerCase() === dayName.toLowerCase() ||
             day?.day?.toLowerCase() === `day ${index + 1}`
         );
-        return matched ? { ...matched, day: dayName } : { day: dayName, muscle: dayName === 'Sunday' ? 'Rest' : 'Training Day', exercises: [] };
+        return matched ? { ...matched, day: dayName, exercises: matched.exercises || [] } : { day: dayName, muscle: 'Training Day', exercises: [] };
     });
 }
 
@@ -208,7 +238,7 @@ export default function WorkoutPlanView() {
                         <CalorieTracker clientId={client.clientId} />
                     </section>
                 ) : activeTab === 'diet' ? (
-                    <DietPlanDetail firstName={firstName} activeDay={activeDay} rawDiet={rawDiet} />
+                    <DietPlanDetail firstName={firstName} activeDay={activeDay} rawDiet={rawDiet} clientId={client.clientId} />
                 ) : (
                     <TrainingPlan
                         currentDayPlan={currentDayPlan}
@@ -290,55 +320,90 @@ function TrainingPlan({
     );
 }
 
-function DietPlanDetail({ firstName, activeDay, rawDiet }) {
+function DietPlanDetail({ firstName, activeDay, rawDiet, clientId }) {
     const meals = MEALS_BY_DAY[activeDay] || MEALS_BY_DAY.Monday;
+    const [dietProgress, setDietProgress] = useState({ mealsCompleted: 0, mealTarget: 4, done: false });
+    const [saving, setSaving] = useState(false);
+
+    useEffect(() => {
+        let cancelled = false;
+        getDietProgress(clientId).then(progress => {
+            if (!cancelled) setDietProgress(progress);
+        });
+        return () => {
+            cancelled = true;
+        };
+    }, [clientId]);
+
+    const updateDietProgress = async (next) => {
+        setSaving(true);
+        const saved = await saveDietProgress(clientId, next).finally(() => setSaving(false));
+        setDietProgress(saved);
+    };
+
+    const handleMealToggle = (count) => {
+        const mealsCompleted = dietProgress.mealsCompleted >= count ? count - 1 : count;
+        updateDietProgress({
+            ...dietProgress,
+            mealsCompleted,
+            done: mealsCompleted >= dietProgress.mealTarget,
+        });
+    };
 
     return (
         <section className="fit-content-panel fit-diet-detail">
             <p className="fit-diet-greeting">Hi {firstName}!</p>
             <button className="fit-diet-title" type="button">
-                Personalised Diet Plan - Muscle Gain
+                {rawDiet ? 'Your saved diet plan' : 'Generate a diet plan'}
             </button>
 
-            <div className="fit-diet-section">
-                <h2>1. Daily Calorie Target and Macros</h2>
-                <p>
-                    To support muscle gain, we'll aim for a slight calorie surplus with adequate protein.
-                    Your target is approximately:
-                </p>
-                <div className="fit-macro-grid">
-                    <MacroCard label="Calories" value="2700-2900 kcal" />
-                    <MacroCard label="Protein" value="160-180g" detail="approx. 2.2-2.5g per kg bodyweight" />
-                    <MacroCard label="Carbohydrates" value="300-350g" detail="focus on complex carbs" />
-                    <MacroCard label="Fats" value="70-85g" detail="focus on healthy fats" />
+            <div className="fit-diet-tracker">
+                <div>
+                    <span className="fit-kicker">Today's diet</span>
+                    <h2>{dietProgress.done ? 'Nutrition completed' : `${dietProgress.mealsCompleted}/${dietProgress.mealTarget} meals complete`}</h2>
+                    <p>Diet completion updates your unified dashboard progress.</p>
+                </div>
+                <div className="fit-meal-checks" aria-label="Diet meal completion">
+                    {Array.from({ length: dietProgress.mealTarget || 4 }, (_, index) => {
+                        const count = index + 1;
+                        const complete = dietProgress.mealsCompleted >= count;
+                        return (
+                            <button
+                                key={count}
+                                className={`fit-meal-check ${complete ? 'is-complete' : ''}`}
+                                onClick={() => handleMealToggle(count)}
+                                disabled={saving}
+                            >
+                                {complete && <CheckCircle2 size={16} />}
+                                Meal {count}
+                            </button>
+                        );
+                    })}
                 </div>
             </div>
 
-            <div className="fit-diet-section">
-                <h2>2. 7-Day Meal Plan</h2>
-                <div className="fit-meal-list">
-                    {meals.map(meal => (
-                        <div key={meal} className="fit-meal-row">{meal}</div>
-                    ))}
+            {rawDiet ? (
+                ensureParsed(rawDiet)?.fallback ? (
+                    <div className="fit-diet-section">
+                        <h2>{ensureParsed(rawDiet).fallback.message}</h2>
+                        {ensureParsed(rawDiet).fallback.showRecommendations && (
+                            <p>We recommend adjusting your dietary preferences or consulting a nutritionist.</p>
+                        )}
+                    </div>
+                ) : (
+                    <div className="fit-generated-diet fit-generated-diet-body" dangerouslySetInnerHTML={{ __html: rawDiet }} />
+                )
+            ) : (
+                <div className="fit-diet-section">
+                    <h2>No saved diet plan yet</h2>
+                    <p>Generate a diet plan once and it will appear here after login on any device.</p>
+                    <div className="fit-meal-list">
+                        {meals.map(meal => (
+                            <div key={meal} className="fit-meal-row">{meal}</div>
+                        ))}
+                    </div>
                 </div>
-            </div>
-
-            {rawDiet && (
-                <details className="fit-generated-diet">
-                    <summary>Generated plan details</summary>
-                    <div dangerouslySetInnerHTML={{ __html: rawDiet }} />
-                </details>
             )}
         </section>
-    );
-}
-
-function MacroCard({ label, value, detail }) {
-    return (
-        <div className="fit-macro-card">
-            <span>{label}</span>
-            <strong>{value}</strong>
-            {detail && <small>{detail}</small>}
-        </div>
     );
 }
