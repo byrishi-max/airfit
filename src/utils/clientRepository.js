@@ -7,7 +7,7 @@ export async function updateClientPlanStatus(clientId, planStatus) {
     const { error } = await supabase
       .from('clients')
       .update({ plan_status: planStatus })
-      .eq('id', clientId);
+      .eq('client_id', clientId);
     if (error) throw error;
     return true;
   } catch (error) {

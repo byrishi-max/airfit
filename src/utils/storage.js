@@ -39,8 +39,12 @@ export const getClients = async () => {
   return data.map(normalizeClient);
 };
 
-export const createClient = async (name, email, phone) => {
+export const createClient = async (name, email, phone, clientId = null) => {
+  if (!clientId) {
+    clientId = Math.random().toString(36).substr(2, 9);
+  }
   const newClient = {
+    client_id: clientId,
     name,
     email: email || '',
     phone,
@@ -51,7 +55,7 @@ export const createClient = async (name, email, phone) => {
 };
 
 const normalizeClient = (data) => ({
-  clientId: data.id,
+  clientId: data.client_id || data.id,
   name: data.name,
   email: data.email,
   phone: data.phone,
@@ -65,20 +69,19 @@ export const findClientByPhone = async (phone) => {
 };
 
 export const findClientById = async (clientId) => {
-  const { data, error } = await supabase.from('clients').select('*').eq('id', clientId).limit(1).single();
+  const { data, error } = await supabase.from('clients').select('*').eq('client_id', clientId).limit(1).single();
   if (error || !data) return null;
   return normalizeClient(data);
 };
 
-export const registerClientRemote = async ({ name, email, phone }) => {
-  return createClient(name, email, phone);
+export const registerClientRemote = async ({ name, email, phone, clientId }) => {
+  return createClient(name, email, phone, clientId);
 };
 
 export const deleteClient = async (clientId) => {
-  await supabase.from('clients').delete().eq('id', clientId);
-  // Also delete associated plans and metrics automatically if cascading delete is not enabled
+  await supabase.from('clients').delete().eq('client_id', clientId);
+  // Also delete associated plans automatically if cascading delete is not enabled
   await supabase.from('plans').delete().eq('client_id', clientId);
-  await supabase.from('metrics').delete().eq('client_id', clientId);
 };
 
 // Alias used by App.jsx and ClientDashboard
