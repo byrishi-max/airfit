@@ -1,82 +1,86 @@
 import { getDailyCalories as getLocalDailyCalories, getProgress as getLocalProgress, logDailyCalories as logLocalDailyCalories, setProgress as setLocalProgress } from './storage';
-import { isSupabaseConfigured, supabaseRequest, toIsoNow } from './supabaseClient';
+import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
+import { collection, doc, setDoc, getDocs, query, where, orderBy, addDoc } from 'firebase/firestore';
 
 export async function getExerciseProgressMap(clientId, weekNumber, dayName) {
-  if (!isSupabaseConfigured || !clientId) return null;
+  if (!isFirebaseConfigured || !clientId) return null;
 
-  const rows = await supabaseRequest(
-    `exercise_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=eq.${weekNumber}&day_name=eq.${encodeURIComponent(dayName)}&select=exercise_name,completed`
-  );
-  return (rows || []).reduce((acc, row) => {
-    acc[row.exercise_name] = Boolean(row.completed);
+  const progressRef = collection(db, 'clients', clientId, 'exercise_progress');
+  const q = query(progressRef, where('week_number', '==', weekNumber), where('day_name', '==', dayName));
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.reduce((acc, docSnap) => {
+    const data = docSnap.data();
+    acc[data.exercise_name] = Boolean(data.completed);
     return acc;
   }, {});
 }
 
 export async function setExerciseProgress({ clientId, weekNumber, dayName, exerciseName, completed }) {
-  if (!isSupabaseConfigured || !clientId) {
+  if (!isFirebaseConfigured || !clientId) {
     setLocalProgress(clientId, weekNumber, dayName, exerciseName, completed);
     return null;
   }
 
-  return supabaseRequest('exercise_progress?on_conflict=client_id,week_number,day_name,exercise_name', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
-      client_id: clientId,
-      week_number: weekNumber,
-      day_name: dayName,
-      exercise_name: exerciseName,
-      completed,
-      completed_at: completed ? toIsoNow() : null,
-      updated_at: toIsoNow(),
-    }),
-  });
+  const docId = `${weekNumber}_${dayName}_${exerciseName.replace(/[^a-zA-Z0-9]/g, '_')}`;
+  const progressRef = doc(db, 'clients', clientId, 'exercise_progress', docId);
+
+  return setDoc(progressRef, {
+    client_id: clientId,
+    week_number: weekNumber,
+    day_name: dayName,
+    exercise_name: exerciseName,
+    completed,
+    completed_at: completed ? toIsoNow() : null,
+    updated_at: toIsoNow(),
+  }, { merge: true });
 }
 
 export async function getDayDone(clientId, weekNumber, dayName) {
-  if (!isSupabaseConfigured || !clientId) {
+  if (!isFirebaseConfigured || !clientId) {
     return localStorage.getItem(`airfit_daydone_${clientId}_${dayName}`) === 'true';
   }
 
-  const rows = await supabaseRequest(
-    `day_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=eq.${weekNumber}&day_name=eq.${encodeURIComponent(dayName)}&select=done&limit=1`
-  );
-  return Boolean(rows?.[0]?.done);
+  const docId = `${weekNumber}_${dayName}`;
+  const dayRef = collection(db, 'clients', clientId, 'day_progress');
+  const q = query(dayRef, where('week_number', '==', weekNumber), where('day_name', '==', dayName));
+  const snapshot = await getDocs(q);
+  
+  if (snapshot.empty) return false;
+  return Boolean(snapshot.docs[0].data().done);
 }
 
 export async function markDayDoneRemote(clientId, weekNumber, dayName) {
-  if (!isSupabaseConfigured || !clientId) {
+  if (!isFirebaseConfigured || !clientId) {
     localStorage.setItem(`airfit_daydone_${clientId}_${dayName}`, 'true');
     return null;
   }
 
-  return supabaseRequest('day_progress?on_conflict=client_id,week_number,day_name', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=minimal' },
-    body: JSON.stringify({
-      client_id: clientId,
-      week_number: weekNumber,
-      day_name: dayName,
-      done: true,
-      done_at: toIsoNow(),
-      updated_at: toIsoNow(),
-    }),
-  });
+  const docId = `${weekNumber}_${dayName}`;
+  const dayRef = doc(db, 'clients', clientId, 'day_progress', docId);
+
+  return setDoc(dayRef, {
+    client_id: clientId,
+    week_number: weekNumber,
+    day_name: dayName,
+    done: true,
+    done_at: toIsoNow(),
+    updated_at: toIsoNow(),
+  }, { merge: true });
 }
 
 export async function getWeeklyProgress(clientId, weekNumber) {
-  if (!isSupabaseConfigured || !clientId) return null;
+  if (!isFirebaseConfigured || !clientId) return null;
 
-  const [exerciseRows, dayRows, calorieRows] = await Promise.all([
-    supabaseRequest(`exercise_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=eq.${weekNumber}&select=*`),
-    supabaseRequest(`day_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=eq.${weekNumber}&select=*`),
+  const [exerciseSnap, daySnap, calorieRows] = await Promise.all([
+    getDocs(query(collection(db, 'clients', clientId, 'exercise_progress'), where('week_number', '==', weekNumber))),
+    getDocs(query(collection(db, 'clients', clientId, 'day_progress'), where('week_number', '==', weekNumber))),
     getWeeklyCalories(clientId),
   ]);
 
   return {
-    exercises: exerciseRows || [],
-    days: dayRows || [],
+    exercises: exerciseSnap.docs.map(d => d.data()),
+    days: daySnap.docs.map(d => d.data()),
     calories: calorieRows || [],
   };
 }
@@ -155,7 +159,7 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
     };
   }
 
-  if (!isSupabaseConfigured) {
+  if (!isFirebaseConfigured) {
     const currentWeekDone = template.days.reduce((sum, day) => {
       return sum + (day.exercises || []).filter(exercise =>
         getLocalProgress(clientId, currentWeek, day.day, exercise.name)
@@ -179,15 +183,19 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
   }
 
   const weekNumbers = [1, 2, 3, 4];
-  const [exerciseRows, dayRows, monthCaloriesRows, todayCaloriesRows] = await Promise.all([
-    supabaseRequest(`exercise_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=in.(1,2,3,4)&completed=eq.true&select=*`),
-    supabaseRequest(`day_progress?client_id=eq.${encodeURIComponent(clientId)}&week_number=in.(1,2,3,4)&done=eq.true&select=*`),
-    supabaseRequest(`calorie_logs?client_id=eq.${encodeURIComponent(clientId)}&log_date=gte.${startOfMonthDate()}&select=*`),
+  const [exerciseSnap, daySnap, monthCaloriesRows, todayCaloriesRows] = await Promise.all([
+    getDocs(query(collection(db, 'clients', clientId, 'exercise_progress'), where('week_number', 'in', weekNumbers), where('completed', '==', true))),
+    getDocs(query(collection(db, 'clients', clientId, 'day_progress'), where('week_number', 'in', weekNumbers), where('done', '==', true))),
+    getDocs(query(collection(db, 'clients', clientId, 'calorie_logs'), where('log_date', '>=', startOfMonthDate()))),
     getCaloriesForDate(clientId),
   ]);
 
+  const exerciseRows = exerciseSnap.docs.map(d => d.data());
+  const dayRows = daySnap.docs.map(d => d.data());
+  const monthCaloriesData = monthCaloriesRows.docs.map(d => d.data());
+
   const validCompletedExerciseKeys = new Set();
-  (exerciseRows || []).forEach(row => {
+  exerciseRows.forEach(row => {
     if (!template.exerciseKeys.has(`${row.day_name}::${row.exercise_name}`)) return;
     validCompletedExerciseKeys.add(`${row.week_number}::${row.day_name}::${row.exercise_name}`);
   });
@@ -198,7 +206,7 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
   const weeklyProgress = await getWeeklyProgress(clientId, currentWeek);
   const todayCalories = (todayCaloriesRows || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
   const weekCalories = (weeklyProgress?.calories || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
-  const monthCalories = (monthCaloriesRows || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
+  const monthCalories = monthCaloriesData.reduce((sum, log) => sum + Number(log.calories || 0), 0);
 
   return {
     currentWeek,
@@ -206,9 +214,9 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
     currentWeekTotal: template.exerciseCount,
     monthlyDone: validCompletedExerciseKeys.size,
     monthlyTotal: monthlyExerciseTarget,
-    completedDays: (dayRows || []).length,
+    completedDays: dayRows.length,
     totalDays: monthlyDayTarget,
-    streak: calculateStreak(dayRows || []),
+    streak: calculateStreak(dayRows),
     todayCalories,
     weekCalories,
     monthCalories,
@@ -222,45 +230,50 @@ export function getLocalExerciseCompleted(clientId, weekNumber, dayName, exercis
 }
 
 export async function logCalories(clientId, food, calories) {
-  if (!isSupabaseConfigured || !clientId) {
+  if (!isFirebaseConfigured || !clientId) {
     logLocalDailyCalories(clientId, food, calories);
     return getLocalDailyCalories(clientId);
   }
 
-  await supabaseRequest('calorie_logs', {
-    method: 'POST',
-    headers: { Prefer: 'return=minimal' },
-    body: JSON.stringify({
-      client_id: clientId,
-      log_date: new Date().toISOString().split('T')[0],
-      food,
-      calories: Number(calories),
-    }),
+  const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
+  await addDoc(logsRef, {
+    client_id: clientId,
+    log_date: new Date().toISOString().split('T')[0],
+    food,
+    calories: Number(calories),
+    created_at: toIsoNow()
   });
+  
   return getCaloriesForDate(clientId);
 }
 
 export async function getCaloriesForDate(clientId, date = new Date().toISOString().split('T')[0]) {
-  if (!isSupabaseConfigured || !clientId) {
+  if (!isFirebaseConfigured || !clientId) {
     return getLocalDailyCalories(clientId);
   }
 
-  const rows = await supabaseRequest(
-    `calorie_logs?client_id=eq.${encodeURIComponent(clientId)}&log_date=eq.${date}&select=*&order=created_at.desc`
-  );
-  return (rows || []).map(row => ({
-    food: row.food,
-    calories: row.calories,
-    time: new Date(row.created_at).toLocaleTimeString(),
-    createdAt: row.created_at,
-  }));
+  const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
+  const q = query(logsRef, where('log_date', '==', date), orderBy('created_at', 'desc'));
+  const snapshot = await getDocs(q);
+  
+  return snapshot.docs.map(docSnap => {
+    const row = docSnap.data();
+    return {
+      food: row.food,
+      calories: row.calories,
+      time: new Date(row.created_at).toLocaleTimeString(),
+      createdAt: row.created_at,
+    };
+  });
 }
 
 async function getWeeklyCalories(clientId) {
   const since = new Date();
   since.setDate(since.getDate() - 6);
   const sinceDate = since.toISOString().split('T')[0];
-  return supabaseRequest(
-    `calorie_logs?client_id=eq.${encodeURIComponent(clientId)}&log_date=gte.${sinceDate}&select=*`
-  );
+  
+  const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
+  const q = query(logsRef, where('log_date', '>=', sinceDate));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(doc => doc.data());
 }

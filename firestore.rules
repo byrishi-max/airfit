@@ -1,0 +1,25 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // AirFit Database Rules
+    // To ensure full security, implement Firebase Authentication (e.g., Phone Auth)
+    // and replace 'if true' with 'if request.auth != null && request.auth.uid == clientId'
+    
+    match /clients/{clientId} {
+      allow read, write: if true;
+      
+      match /plans/{document=**} {
+        allow read, write: if true;
+      }
+      match /exercise_progress/{document=**} {
+        allow read, write: if true;
+      }
+      match /day_progress/{document=**} {
+        allow read, write: if true;
+      }
+      match /calorie_logs/{document=**} {
+        allow read, write: if true;
+      }
+    }
+  }
+}
