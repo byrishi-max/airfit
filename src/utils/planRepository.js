@@ -1,9 +1,14 @@
 import { parseWorkoutPlan, normalizePlanType } from './planUtils';
-import { isSupabaseConfigured, supabaseRequest } from './supabaseClient';
+import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
+import { collection, doc, setDoc, getDocs, query, orderBy } from 'firebase/firestore';
 
 export async function getPlansForClient(clientId) {
-  if (!isSupabaseConfigured || !clientId) return [];
-  return supabaseRequest(`plans?client_id=eq.${encodeURIComponent(clientId)}&select=*&order=updated_at.desc`);
+  if (!isFirebaseConfigured || !clientId) return [];
+  
+  const plansRef = collection(db, 'clients', clientId, 'plans');
+  const q = query(plansRef, orderBy('updated_at', 'desc'));
+  const snapshot = await getDocs(q);
+  return snapshot.docs.map(docSnap => docSnap.data());
 }
 
 export async function getClientPlans(clientId) {
@@ -26,56 +31,52 @@ export async function getClientPlans(clientId) {
 }
 
 export async function markPlanPending(clientId, planType) {
-  if (!isSupabaseConfigured || !clientId) return null;
+  if (!isFirebaseConfigured || !clientId) return null;
 
   const normalized = normalizePlanType(planType);
-  return supabaseRequest('plans?on_conflict=client_id,plan_type', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify({
-      client_id: clientId,
-      plan_type: normalized,
-      status: 'pending',
-      updated_at: new Date().toISOString(),
-    }),
-  });
+  const planRef = doc(db, 'clients', clientId, 'plans', normalized);
+  
+  return setDoc(planRef, {
+    client_id: clientId,
+    plan_type: normalized,
+    status: 'pending',
+    updated_at: toIsoNow(),
+  }, { merge: true });
 }
 
 export async function saveGeneratedPlan(clientId, data) {
-  if (!isSupabaseConfigured || !clientId) return null;
+  if (!isFirebaseConfigured || !clientId) return null;
 
   const normalized = normalizePlanType(data.planType || (data.isDiet ? 'diet' : 'workout'));
-  const rows = [];
+  const promises = [];
 
   if (data.workoutJson || normalized === 'workout') {
-    rows.push({
+    const workoutRef = doc(db, 'clients', clientId, 'plans', 'workout');
+    promises.push(setDoc(workoutRef, {
       client_id: clientId,
       plan_type: 'workout',
       status: 'ready',
       workout_json: parseWorkoutPlan(data.workoutJson),
       diet_html: null,
-      generated_at: data.generatedAt || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+      generated_at: data.generatedAt || toIsoNow(),
+      updated_at: toIsoNow(),
+    }, { merge: true }));
   }
 
   if (data.dietHtml || normalized === 'diet') {
-    rows.push({
+    const dietRef = doc(db, 'clients', clientId, 'plans', 'diet');
+    promises.push(setDoc(dietRef, {
       client_id: clientId,
       plan_type: 'diet',
       status: 'ready',
       workout_json: null,
       diet_html: data.dietHtml || null,
-      generated_at: data.generatedAt || new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    });
+      generated_at: data.generatedAt || toIsoNow(),
+      updated_at: toIsoNow(),
+    }, { merge: true }));
   }
 
-  if (!rows.length) return null;
+  if (!promises.length) return null;
 
-  return supabaseRequest('plans?on_conflict=client_id,plan_type', {
-    method: 'POST',
-    headers: { Prefer: 'resolution=merge-duplicates,return=representation' },
-    body: JSON.stringify(rows),
-  });
+  return Promise.all(promises);
 }
