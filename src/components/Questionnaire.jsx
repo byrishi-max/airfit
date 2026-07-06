@@ -1,6 +1,6 @@
 import React, { useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
-import { Rocket, Send, Loader2 } from "lucide-react";
+import { Rocket, Loader2 } from "lucide-react";
 import { useClientPlan } from "../hooks/useClientPlan";
 import { ENDPOINTS } from "../utils/config";
 

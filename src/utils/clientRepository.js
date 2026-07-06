@@ -1,6 +1,6 @@
 import { createClient as createLocalClient, findClientByPhone, getClients, registerClientRemote, saveClient, saveClients } from './storage';
 import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
-import { collection, doc, setDoc, getDoc, getDocs, query, where, updateDoc, deleteDoc, limit as limitDocs, orderBy } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc, limit as limitDocs, orderBy } from 'firebase/firestore';
 import { getPlansForClient } from './planRepository';
 
 const mapClientFromFirebase = (data, plans = []) => {

@@ -41,7 +41,6 @@ export async function getDayDone(clientId, weekNumber, dayName) {
     return localStorage.getItem(`airfit_daydone_${clientId}_${dayName}`) === 'true';
   }
 
-  const docId = `${weekNumber}_${dayName}`;
   const dayRef = collection(db, 'clients', clientId, 'day_progress');
   const q = query(dayRef, where('week_number', '==', weekNumber), where('day_name', '==', dayName));
   const snapshot = await getDocs(q);

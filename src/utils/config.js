@@ -1,5 +1,6 @@
 // Central config — all API URLs read from .env variables
 const N8N_BASE = process.env.REACT_APP_N8N_BASE;
+const PRODUCTION_APP_URL = 'https://airfitworkout.vercel.app';
 
 export const ENDPOINTS = {
     SUBMIT_PLAN:     `${N8N_BASE}/airfit-gym-diet`,
@@ -11,6 +12,13 @@ export const ENDPOINTS = {
     REGISTER_CLIENT: `${N8N_BASE}/airfit-register-client`, // POST { clientId, name, email, phone }
 };
 
+const browserOrigin =
+    typeof window !== 'undefined' ? window.location.origin : '';
+
+const isLocalOrigin =
+    browserOrigin.startsWith('http://localhost') ||
+    browserOrigin.startsWith('http://127.0.0.1');
+
 export const APP_URL =
     process.env.REACT_APP_URL ||
-    (typeof window !== 'undefined' ? window.location.origin : 'https://airfitworkout.vercel.app');
+    (browserOrigin && !isLocalOrigin ? browserOrigin : PRODUCTION_APP_URL);
