@@ -97,7 +97,7 @@ export function useClientPlan(clientId) {
             if (data.status === 'ready') {
                 if (data.workoutJson || data.dietHtml) {
                     await saveGeneratedPlan(clientId, data).catch(error => {
-                        console.warn('[AirFit] Failed to save generated plan to Supabase:', error);
+                        console.warn('[AirFit] Failed to save generated plan to Firebase:', error);
                     });
                     await updateClientPlanStatus(clientId, 'ready').catch(error => {
                         console.warn('[AirFit] Failed to update remote client ready status:', error);
@@ -138,7 +138,7 @@ export function useClientPlan(clientId) {
         const syncLocalAndRemote = async () => {
             try {
                 const remotePlans = await getClientPlans(clientId).catch(error => {
-                    console.warn('[AirFit] Supabase plan sync skipped:', error);
+                    console.warn('[AirFit] Firebase plan sync skipped:', error);
                     return null;
                 });
 
