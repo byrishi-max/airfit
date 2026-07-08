@@ -347,6 +347,7 @@
       "name": "Check Curated DB",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
+      "continueOnFail": true,
       "position": [
         1100,
         160
