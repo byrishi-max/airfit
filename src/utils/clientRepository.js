@@ -2,6 +2,7 @@ import { createClient as createLocalClient, findClientByPhone, getClients, regis
 import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc, limit as limitDocs, orderBy } from 'firebase/firestore';
 import { getPlansForClient } from './planRepository';
+import { withTimeout } from './async';
 
 const mapClientFromFirebase = (data, plans = []) => {
   const workoutPlan = plans.find(plan => plan.plan_type === 'workout');
@@ -31,7 +32,7 @@ export async function listClients() {
 
   const clientsRef = collection(db, 'clients');
   const q = query(clientsRef, orderBy('created_at', 'desc'));
-  const snapshot = await getDocs(q);
+  const snapshot = await withTimeout(getDocs(q), 12000, 'Firebase client list');
   
   const clients = await Promise.all(snapshot.docs.map(async (docSnap) => {
     const data = docSnap.data();
@@ -50,7 +51,7 @@ export async function findClientByPhoneRemote(phone) {
 
   const clientsRef = collection(db, 'clients');
   const q = query(clientsRef, where('phone', '==', phone), limitDocs(1));
-  const snapshot = await getDocs(q);
+  const snapshot = await withTimeout(getDocs(q), 12000, 'Firebase client lookup');
   
   if (snapshot.empty) return null;
   
@@ -73,18 +74,20 @@ export async function createClientRecord({ name, email, phone }) {
       throw new Error('Phone number already exists');
     }
     const localClient = createLocalClient(name, email, phone);
-    await registerClientRemote(localClient).catch(() => null);
+    registerClientRemote(localClient).catch(error => {
+      console.warn('[AirFit] Non-critical n8n client registration failed:', error.message || error);
+    });
     return localClient;
   }
 
   const clientsRef = collection(db, 'clients');
   
   const emailQ = query(clientsRef, where('email', '==', email), limitDocs(1));
-  const emailSnap = await getDocs(emailQ);
+  const emailSnap = await withTimeout(getDocs(emailQ), 12000, 'Firebase email duplicate check');
   if (!emailSnap.empty) throw new Error('Email already exists');
 
   const phoneQ = query(clientsRef, where('phone', '==', phone), limitDocs(1));
-  const phoneSnap = await getDocs(phoneQ);
+  const phoneSnap = await withTimeout(getDocs(phoneQ), 12000, 'Firebase phone duplicate check');
   if (!phoneSnap.empty) throw new Error('Phone number already exists');
 
   const newClientData = {
@@ -96,11 +99,13 @@ export async function createClientRecord({ name, email, phone }) {
     created_at: toIsoNow()
   };
 
-  await setDoc(doc(db, 'clients', clientId), newClientData);
+  await withTimeout(setDoc(doc(db, 'clients', clientId), newClientData), 12000, 'Firebase client save');
   
   const client = mapClientFromFirebase(newClientData, []);
   saveClient(client);
-  await registerClientRemote(client).catch(() => null);
+  registerClientRemote(client).catch(error => {
+    console.warn('[AirFit] Non-critical n8n client registration failed:', error.message || error);
+  });
   return client;
 }
 
@@ -108,14 +113,14 @@ export async function updateClientPlanStatus(clientId, planStatus) {
   if (!isFirebaseConfigured || !clientId) return null;
 
   const clientRef = doc(db, 'clients', clientId);
-  return updateDoc(clientRef, {
+  return withTimeout(updateDoc(clientRef, {
     plan_status: planStatus,
     updated_at: toIsoNow()
-  });
+  }), 12000, 'Firebase plan status update');
 }
 
 export async function deleteClientRecord(clientId) {
   if (!isFirebaseConfigured || !clientId) return null;
   const clientRef = doc(db, 'clients', clientId);
-  return deleteDoc(clientRef);
+  return withTimeout(deleteDoc(clientRef), 12000, 'Firebase client delete');
 }

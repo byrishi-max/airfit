@@ -14,6 +14,7 @@ export default function AdminDashboard() {
     const [toast, setToast] = useState({ msg: '', type: 'success' });
     const [selectedClient, setSelectedClient] = useState(null);
     const [inviteSending, setInviteSending] = useState(false);
+    const [submitStage, setSubmitStage] = useState('idle');
 
     useEffect(() => {
         loadClients();
@@ -49,6 +50,7 @@ export default function AdminDashboard() {
         const clientPhone = form.phone.trim();
 
         setInviteSending(true);
+        setSubmitStage('saving');
         let newClient;
 
         try {
@@ -59,6 +61,7 @@ export default function AdminDashboard() {
             });
         } catch (error) {
             setInviteSending(false);
+            setSubmitStage('idle');
             showToast(error.message || 'Could not add client. Please try again.', 'warning');
             return;
         }
@@ -66,8 +69,10 @@ export default function AdminDashboard() {
         setClients(prev => [...prev, newClient]);
         setForm({ name: '', email: '', phone: '' });
 
+        setSubmitStage('inviting');
         const sent = await sendPortalInvite({ name: clientName, email: clientEmail, phone: clientPhone });
         setInviteSending(false);
+        setSubmitStage('idle');
 
         if (sent) {
             showToast(`Client added. Invite sent to ${clientEmail}. Login phone: ${clientPhone}`, 'success');
@@ -142,7 +147,7 @@ export default function AdminDashboard() {
                                 marginTop: '8px', padding: '14px', background: inviteSending ? '#2a2a2a' : '#FF5C1A',
                                 color: inviteSending ? '#666' : '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: inviteSending ? 'not-allowed' : 'pointer'
                             }}>
-                                {inviteSending ? 'Saving...' : '+ Add Client & Send Invite'}
+                                {submitStage === 'saving' ? 'Saving to Firebase...' : submitStage === 'inviting' ? 'Sending invite...' : '+ Add Client & Send Invite'}
                             </button>
                         </form>
                     </div>

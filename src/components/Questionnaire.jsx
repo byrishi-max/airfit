@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Rocket, Loader2 } from "lucide-react";
 import { useClientPlan } from "../hooks/useClientPlan";
 import { ENDPOINTS } from "../utils/config";
+import { fetchWithTimeout } from "../utils/async";
 
 const SHARED = [
     { key: "name", label: "Full Name", type: "text", placeholder: "e.g. Rahul Sharma" },
@@ -111,11 +112,14 @@ function Questionnaire({ planType, client, onCancel }) {
         }
 
         try {
-            await fetch(ENDPOINTS.SUBMIT_PLAN, {
+            const response = await fetchWithTimeout(ENDPOINTS.SUBMIT_PLAN, {
                 method: "POST",
                 headers,
                 body: JSON.stringify(form),
-            });
+            }, 15000);
+            if (!response.ok) {
+                console.warn('Plan submit returned non-OK status:', response.status);
+            }
         } catch (e) {
             // Log the error but continue; the UI will still navigate to the waiting screen
             console.warn('Failed to submit plan:', e);

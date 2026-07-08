@@ -1,4 +1,5 @@
 import { ENDPOINTS } from './config';
+import { fetchWithTimeout } from './async';
 
 export const STORAGE_KEYS = {
   ADMIN_SESSION: 'airfit_admin_session',
@@ -110,11 +111,11 @@ export const findClientById = async (clientId) => {
 };
 
 export const registerClientRemote = async ({ clientId, name, email, phone }) => {
-  const res = await fetch(ENDPOINTS.REGISTER_CLIENT, {
+  const res = await fetchWithTimeout(ENDPOINTS.REGISTER_CLIENT, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ clientId, name, email, phone }),
-  });
+  }, 8000);
   if (!res.ok) throw new Error(`Register failed: ${res.status}`);
   return res.json();
 };

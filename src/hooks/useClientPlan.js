@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { ENDPOINTS } from '../utils/config';
 import { updateClientPlanStatus } from '../utils/clientRepository';
 import { getClientPlans, markPlanPending, saveGeneratedPlan } from '../utils/planRepository';
+import { fetchWithTimeout } from '../utils/async';
 
 /**
  * Safely parse workoutJson — handles double-stringified JSON from n8n.
@@ -71,7 +72,11 @@ export function useClientPlan(clientId) {
         setIsLoading(true);
         try {
             console.log('Checking status for client:', clientId);
-            const response = await fetch(`${ENDPOINTS.GET_PLAN}?clientId=${encodeURIComponent(clientId)}`); // Using ENDPOINTS
+            const response = await fetchWithTimeout(
+                `${ENDPOINTS.GET_PLAN}?clientId=${encodeURIComponent(clientId)}`,
+                {},
+                10000
+            );
             if (!response.ok) {
                 if (response.status === 404) {
                     console.log('[AirFit] Plan not ready yet (404)');

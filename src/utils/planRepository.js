@@ -1,13 +1,14 @@
 import { parseWorkoutPlan, normalizePlanType } from './planUtils';
 import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
 import { collection, doc, setDoc, getDocs, query, orderBy } from 'firebase/firestore';
+import { withTimeout } from './async';
 
 export async function getPlansForClient(clientId) {
   if (!isFirebaseConfigured || !clientId) return [];
   
   const plansRef = collection(db, 'clients', clientId, 'plans');
   const q = query(plansRef, orderBy('updated_at', 'desc'));
-  const snapshot = await getDocs(q);
+  const snapshot = await withTimeout(getDocs(q), 12000, 'Firebase plan list');
   return snapshot.docs.map(docSnap => docSnap.data());
 }
 
@@ -36,12 +37,12 @@ export async function markPlanPending(clientId, planType) {
   const normalized = normalizePlanType(planType);
   const planRef = doc(db, 'clients', clientId, 'plans', normalized);
   
-  return setDoc(planRef, {
+  return withTimeout(setDoc(planRef, {
     client_id: clientId,
     plan_type: normalized,
     status: 'pending',
     updated_at: toIsoNow(),
-  }, { merge: true });
+  }, { merge: true }), 12000, 'Firebase mark plan pending');
 }
 
 export async function saveGeneratedPlan(clientId, data) {
@@ -52,7 +53,7 @@ export async function saveGeneratedPlan(clientId, data) {
 
   if (data.workoutJson || normalized === 'workout') {
     const workoutRef = doc(db, 'clients', clientId, 'plans', 'workout');
-    promises.push(setDoc(workoutRef, {
+    promises.push(withTimeout(setDoc(workoutRef, {
       client_id: clientId,
       plan_type: 'workout',
       status: 'ready',
@@ -60,12 +61,12 @@ export async function saveGeneratedPlan(clientId, data) {
       diet_html: null,
       generated_at: data.generatedAt || toIsoNow(),
       updated_at: toIsoNow(),
-    }, { merge: true }));
+    }, { merge: true }), 12000, 'Firebase save workout plan'));
   }
 
   if (data.dietHtml || normalized === 'diet') {
     const dietRef = doc(db, 'clients', clientId, 'plans', 'diet');
-    promises.push(setDoc(dietRef, {
+    promises.push(withTimeout(setDoc(dietRef, {
       client_id: clientId,
       plan_type: 'diet',
       status: 'ready',
@@ -73,7 +74,7 @@ export async function saveGeneratedPlan(clientId, data) {
       diet_html: data.dietHtml || null,
       generated_at: data.generatedAt || toIsoNow(),
       updated_at: toIsoNow(),
-    }, { merge: true }));
+    }, { merge: true }), 12000, 'Firebase save diet plan'));
   }
 
   if (!promises.length) return null;
