@@ -4,6 +4,7 @@ import { Rocket, Loader2 } from "lucide-react";
 import { useClientPlan } from "../hooks/useClientPlan";
 import { ENDPOINTS } from "../utils/config";
 import { fetchWithTimeout } from "../utils/async";
+import { jsonHeaders } from "../utils/apiHeaders";
 
 const SHARED = [
     { key: "name", label: "Full Name", type: "text", placeholder: "e.g. Rahul Sharma" },
@@ -106,15 +107,10 @@ function Questionnaire({ planType, client, onCancel }) {
 
     const submit = async () => {
         setLoading(true);
-        const headers = { "Content-Type": "application/json" };
-        if (process.env.REACT_APP_API_TOKEN) {
-            headers.Authorization = `Bearer ${process.env.REACT_APP_API_TOKEN}`;
-        }
-
         try {
             const response = await fetchWithTimeout(ENDPOINTS.SUBMIT_PLAN, {
                 method: "POST",
-                headers,
+                headers: jsonHeaders(),
                 body: JSON.stringify(form),
             }, 15000);
             if (!response.ok) {

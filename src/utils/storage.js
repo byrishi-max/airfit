@@ -1,5 +1,6 @@
 import { ENDPOINTS } from './config';
 import { fetchWithTimeout } from './async';
+import { jsonHeaders } from './apiHeaders';
 
 export const STORAGE_KEYS = {
   ADMIN_SESSION: 'airfit_admin_session',
@@ -84,7 +85,7 @@ export const findClientByPhone = async (phone) => {
   try {
     const res = await fetch(
       `${ENDPOINTS.VERIFY_CLIENT}?phone=${encodeURIComponent(phone)}`,
-      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      { method: 'GET', headers: jsonHeaders() }
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -99,7 +100,7 @@ export const findClientById = async (clientId) => {
   try {
     const res = await fetch(
       `${ENDPOINTS.VERIFY_CLIENT}?clientId=${encodeURIComponent(clientId)}`,
-      { method: 'GET', headers: { 'Content-Type': 'application/json' } }
+      { method: 'GET', headers: jsonHeaders() }
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -113,7 +114,7 @@ export const findClientById = async (clientId) => {
 export const registerClientRemote = async ({ clientId, name, email, phone }) => {
   const res = await fetchWithTimeout(ENDPOINTS.REGISTER_CLIENT, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: jsonHeaders(),
     body: JSON.stringify({ clientId, name, email, phone }),
   }, 8000);
   if (!res.ok) throw new Error(`Register failed: ${res.status}`);

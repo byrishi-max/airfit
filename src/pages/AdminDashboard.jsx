@@ -66,19 +66,20 @@ export default function AdminDashboard() {
             return;
         }
 
-        setClients(prev => [...prev, newClient]);
+        setClients(prev => [newClient, ...prev.filter(client => client.clientId !== newClient.clientId)]);
         setForm({ name: '', email: '', phone: '' });
-
-        setSubmitStage('inviting');
-        const sent = await sendPortalInvite({ name: clientName, email: clientEmail, phone: clientPhone });
         setInviteSending(false);
         setSubmitStage('idle');
+        showToast(`Client saved. Sending invite to ${clientEmail}...`, 'success');
 
-        if (sent) {
-            showToast(`Client added. Invite sent to ${clientEmail}. Login phone: ${clientPhone}`, 'success');
-        } else {
-            showToast(`Client added. Invite email failed; send manually. Login phone: ${clientPhone}`, 'warning');
-        }
+        sendPortalInvite({ name: clientName, email: clientEmail, phone: clientPhone })
+            .then(sent => {
+                if (sent) {
+                    showToast(`Invite sent to ${clientEmail}. Login phone: ${clientPhone}`, 'success');
+                } else {
+                    showToast(`Client saved, but invite email failed. Send manually. Login phone: ${clientPhone}`, 'warning');
+                }
+            });
     };
 
     const handleDeleteClient = async (client) => {

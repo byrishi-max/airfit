@@ -1,5 +1,6 @@
 import { ENDPOINTS, APP_URL } from './config';
 import { fetchWithTimeout } from './async';
+import { jsonHeaders } from './apiHeaders';
 
 /**
  * Fires the n8n invite webhook. This is intentionally non-critical:
@@ -21,10 +22,7 @@ export async function sendPortalInvite({ name, email, phone }) {
   try {
     const res = await fetchWithTimeout(ENDPOINTS.INVITE, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Accept: 'application/json',
-      },
+      headers: jsonHeaders(),
       body: JSON.stringify(payload),
     }, 10000);
 

@@ -3,6 +3,7 @@ import { ENDPOINTS } from '../utils/config';
 import { updateClientPlanStatus } from '../utils/clientRepository';
 import { getClientPlans, markPlanPending, saveGeneratedPlan } from '../utils/planRepository';
 import { fetchWithTimeout } from '../utils/async';
+import { jsonHeaders } from '../utils/apiHeaders';
 
 /**
  * Safely parse workoutJson — handles double-stringified JSON from n8n.
@@ -74,7 +75,7 @@ export function useClientPlan(clientId) {
             console.log('Checking status for client:', clientId);
             const response = await fetchWithTimeout(
                 `${ENDPOINTS.GET_PLAN}?clientId=${encodeURIComponent(clientId)}`,
-                {},
+                { method: 'GET', headers: jsonHeaders() },
                 10000
             );
             if (!response.ok) {
