@@ -46,9 +46,36 @@ const FALLBACK_WORKOUT = {
                 { name: 'Leg Press', sets: '3', reps: '12', videoId: 'IZxyjW7MPJQ' },
             ],
         },
-        { day: 'Thursday', muscle: 'Shoulders & Core', exercises: [] },
-        { day: 'Friday', muscle: 'Upper Body', exercises: [] },
-        { day: 'Saturday', muscle: 'Conditioning', exercises: [] },
+        {
+            day: 'Thursday',
+            muscle: 'Shoulders & Core',
+            exercises: [
+                { name: 'Overhead Shoulder Press', sets: '4', reps: '8-10', videoId: 'qEwKCR5JCog' },
+                { name: 'Lateral Raise', sets: '3', reps: '12-15', videoId: '3VcKaXpzqRo' },
+                { name: 'Face Pull', sets: '3', reps: '12-15', videoId: 'rep-qVOkqgk' },
+                { name: 'Plank', sets: '3', reps: '45-60 sec', videoId: 'pSHjTRCQxIw' },
+            ],
+        },
+        {
+            day: 'Friday',
+            muscle: 'Upper Body',
+            exercises: [
+                { name: 'Push Up', sets: '4', reps: '10-15', videoId: 'IODxDxX7oi4' },
+                { name: 'One Arm Dumbbell Row', sets: '3', reps: '10-12', videoId: 'pYcpY20QaE8' },
+                { name: 'Dumbbell Shoulder Press', sets: '3', reps: '10-12', videoId: 'B-aVuyhvLHU' },
+                { name: 'Hammer Curl', sets: '3', reps: '12', videoId: 'zC3nLlEvin4' },
+            ],
+        },
+        {
+            day: 'Saturday',
+            muscle: 'Conditioning & Mobility',
+            exercises: [
+                { name: 'Goblet Squat', sets: '3', reps: '12-15', videoId: 'MeIiIdhvXT4' },
+                { name: 'Mountain Climber', sets: '3', reps: '30 sec', videoId: 'nmwgirgXLYM' },
+                { name: 'Burpee', sets: '3', reps: '8-10', videoId: 'TU8QYVW0gDU' },
+                { name: 'Dead Bug', sets: '3', reps: '10 each side', videoId: 'g_BYB0R-4Ws' },
+            ],
+        },
         { day: 'Sunday', muscle: 'Rest', exercises: [] },
     ],
 };
@@ -82,13 +109,20 @@ function normalizeDays(plan) {
             day?.day?.toLowerCase() === dayName.toLowerCase() ||
             day?.day?.toLowerCase() === `day ${index + 1}`
         );
-        return matched ? { ...matched, day: dayName } : { day: dayName, muscle: dayName === 'Sunday' ? 'Rest' : 'Training Day', exercises: [] };
+        const fallback = FALLBACK_WORKOUT.days.find(day => day.day === dayName);
+        if (dayName === 'Sunday') {
+            return { ...(matched || fallback), day: dayName, muscle: 'Rest', exercises: [] };
+        }
+        if (matched?.exercises?.length) {
+            return { ...matched, day: dayName };
+        }
+        return { ...(fallback || { muscle: 'Training Day', exercises: [] }), day: dayName };
     });
 }
 
 export default function WorkoutPlanView() {
     const { client, logout } = useClientAuth();
-    const { workoutPlan: rawPlan, dietPlan: rawDiet, workoutGeneratedAt } = useClientPlan(client?.clientId);
+    const { workoutPlan: rawPlan, dietPlan: rawDiet, dietStatus, workoutGeneratedAt } = useClientPlan(client?.clientId);
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const [activeTab, setActiveTab] = useState(() => {
@@ -117,7 +151,12 @@ export default function WorkoutPlanView() {
 
     const handleDietAction = () => {
         setActiveTab('diet');
-        if (!rawDiet) setActiveGenerator('Diet Plan');
+        if (rawDiet) return;
+        if (dietStatus === 'pending') {
+            navigate('/client/waiting');
+            return;
+        }
+        setActiveGenerator('Diet Plan');
     };
 
     const handleLogout = () => {
@@ -168,7 +207,7 @@ export default function WorkoutPlanView() {
 
                     <button className="fit-diet-cta" onClick={handleDietAction}>
                         <Utensils size={18} />
-                        <span>{rawDiet ? 'View Diet Plan' : 'Generate Diet Plan'}</span>
+                        <span>{rawDiet ? 'View Diet Plan' : dietStatus === 'pending' ? 'Diet Plan Processing' : 'Generate Diet Plan'}</span>
                     </button>
 
                     {activeGenerator && (
@@ -293,6 +332,20 @@ function TrainingPlan({
 function DietPlanDetail({ firstName, activeDay, rawDiet }) {
     const meals = MEALS_BY_DAY[activeDay] || MEALS_BY_DAY.Monday;
 
+    if (rawDiet) {
+        return (
+            <section className="fit-content-panel fit-diet-detail">
+                <p className="fit-diet-greeting">Hi {firstName}!</p>
+                <button className="fit-diet-title" type="button">
+                    Personalised Diet Plan
+                </button>
+                <div className="fit-generated-diet is-open">
+                    <div dangerouslySetInnerHTML={{ __html: rawDiet }} />
+                </div>
+            </section>
+        );
+    }
+
     return (
         <section className="fit-content-panel fit-diet-detail">
             <p className="fit-diet-greeting">Hi {firstName}!</p>
@@ -322,13 +375,6 @@ function DietPlanDetail({ firstName, activeDay, rawDiet }) {
                     ))}
                 </div>
             </div>
-
-            {rawDiet && (
-                <details className="fit-generated-diet">
-                    <summary>Generated plan details</summary>
-                    <div dangerouslySetInnerHTML={{ __html: rawDiet }} />
-                </details>
-            )}
         </section>
     );
 }

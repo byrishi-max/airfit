@@ -35,7 +35,7 @@ const emptySummary = {
 export default function ClientDashboard() {
     const { client, logout } = useClientAuth();
     const navigate = useNavigate();
-    const { planStatus, workoutPlan, dietPlan, workoutGeneratedAt } = useClientPlan(client?.clientId);
+    const { planStatus, workoutStatus, dietStatus, workoutPlan, dietPlan, workoutGeneratedAt } = useClientPlan(client?.clientId);
     const [activeForm, setActiveForm] = useState(null);
     const [summary, setSummary] = useState(emptySummary);
     const [waterAmount, setWaterAmount] = useState('500');
@@ -109,6 +109,8 @@ export default function ClientDashboard() {
 
     const hasWorkout = Boolean(workoutPlan?.days?.length || client.workoutPlan);
     const hasDiet = Boolean(dietPlan || client.dietPlan);
+    const workoutLocked = hasWorkout || workoutStatus === 'pending' || workoutStatus === 'ready';
+    const dietLocked = hasDiet || dietStatus === 'pending' || dietStatus === 'ready';
     const isPending = planStatus === 'pending';
 
     // Plan-locked card helper: renders when a plan already exists.
@@ -136,7 +138,7 @@ export default function ClientDashboard() {
 
     const cards = [
         // Workout card: locked when plan exists.
-        ...(!hasWorkout ? [{
+        ...(!workoutLocked ? [{
             title: 'Generate Workout',
             text: 'Generate your training template',
             icon: Dumbbell,
@@ -145,7 +147,7 @@ export default function ClientDashboard() {
             locked: false,
         }] : []),
         // Diet card: locked when plan exists.
-        ...(!hasDiet ? [{
+        ...(!dietLocked ? [{
             title: 'Generate Diet Plan',
             text: 'Generate nutrition targets and meals',
             icon: Utensils,

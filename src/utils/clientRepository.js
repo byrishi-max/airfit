@@ -1,4 +1,4 @@
-import { createClient as createLocalClient, findClientByPhone, getClients, registerClientRemote, saveClient, saveClients } from './storage';
+import { createClient as createLocalClient, findClientByPhone, getClients, registerClientRemote } from './storage';
 import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
 import { collection, doc, setDoc, getDocs, query, where, updateDoc, deleteDoc, limit as limitDocs, orderBy } from 'firebase/firestore';
 import { getPlansForClient } from './planRepository';
@@ -40,7 +40,6 @@ export async function listClients() {
     return mapClientFromFirebase(data, plans);
   }));
   
-  saveClients(clients);
   return clients;
 }
 
@@ -57,9 +56,7 @@ export async function findClientByPhoneRemote(phone) {
   
   const data = snapshot.docs[0].data();
   const plans = await getPlansForClient(data.client_id).catch(() => []);
-  const client = mapClientFromFirebase(data, plans);
-  saveClient(client);
-  return client;
+  return mapClientFromFirebase(data, plans);
 }
 
 export async function createClientRecord({ name, email, phone }) {
@@ -102,7 +99,6 @@ export async function createClientRecord({ name, email, phone }) {
   await withTimeout(setDoc(doc(db, 'clients', clientId), newClientData), 12000, 'Firebase client save');
   
   const client = mapClientFromFirebase(newClientData, []);
-  saveClient(client);
   registerClientRemote(client).catch(error => {
     console.warn('[AirFit] Non-critical n8n client registration failed:', error.message || error);
   });

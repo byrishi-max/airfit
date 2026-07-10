@@ -20,6 +20,12 @@ service cloud.firestore {
       match /calorie_logs/{document=**} {
         allow read, write: if true;
       }
+      match /water_logs/{document=**} {
+        allow read, write: if true;
+      }
+      match /weight_logs/{document=**} {
+        allow read, write: if true;
+      }
     }
 
     match /curated_videos/{videoId} {

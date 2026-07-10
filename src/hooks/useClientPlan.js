@@ -28,6 +28,8 @@ function parseWorkout(raw) {
 
 export function useClientPlan(clientId) {
     const [planStatus, setPlanStatus] = useState('none');
+    const [workoutStatus, setWorkoutStatus] = useState('none');
+    const [dietStatus, setDietStatus] = useState('none');
     const [workoutPlan, setWorkoutPlan] = useState(null);
     const [dietPlan, setDietPlan] = useState(null);
     const [workoutGeneratedAt, setWorkoutGeneratedAt] = useState(null);
@@ -41,30 +43,21 @@ export function useClientPlan(clientId) {
         planStatusRef.current = planStatus;
     }, [planStatus]);
 
-    const savePlanToStorage = useCallback((data) => {
+    const applyPlanData = useCallback((data) => {
         const parsed = parseWorkout(data.workoutJson);
 
-        try {
-            const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
-            const idx = clients.findIndex(c => c.clientId === clientId);
-            if (idx !== -1) {
-                clients[idx].planStatus = 'ready';
-                clients[idx].workoutPlan = parsed;
-                clients[idx].dietPlan = data.dietHtml || null;
-                clients[idx].planType = data.planType || '';
-                clients[idx].planReadyAt = data.generatedAt || new Date().toISOString();
-                localStorage.setItem('airfit_clients', JSON.stringify(clients));
-                console.log('[AirFit] Plan saved to localStorage');
-            }
-        } catch (e) {
-            console.error('Failed to save plan to storage:', e);
+        if (data.workoutJson) {
+            setWorkoutPlan(parsed);
+            setWorkoutGeneratedAt(data.generatedAt || new Date().toISOString());
+            setWorkoutStatus('ready');
         }
-        setWorkoutPlan(parsed);
-        setDietPlan(data.dietHtml || null); // Save diet plan to state
-        if (data.workoutJson) setWorkoutGeneratedAt(data.generatedAt || new Date().toISOString());
-        if (data.dietHtml) setDietGeneratedAt(data.generatedAt || new Date().toISOString());
+        if (data.dietHtml) {
+            setDietPlan(data.dietHtml);
+            setDietGeneratedAt(data.generatedAt || new Date().toISOString());
+            setDietStatus('ready');
+        }
         setPlanStatus('ready');
-    }, [clientId]);
+    }, []);
 
     const checkPlan = useCallback(async () => {
         if (!clientId || isLoadingRef.current) return false;
@@ -108,7 +101,7 @@ export function useClientPlan(clientId) {
                     await updateClientPlanStatus(clientId, 'ready').catch(error => {
                         console.warn('[AirFit] Failed to update remote client ready status:', error);
                     });
-                    savePlanToStorage(data);
+                    applyPlanData(data);
                     return true;
                 } else {
                     console.warn('[AirFit] Plan is marked ready but workoutJson and dietHtml are both missing!');
@@ -123,7 +116,7 @@ export function useClientPlan(clientId) {
             setIsLoading(false);
         }
         return false;
-    }, [clientId, savePlanToStorage]);
+    }, [clientId, applyPlanData]);
 
     // Keep checkPlanRef up to date
     useEffect(() => {
@@ -134,6 +127,8 @@ export function useClientPlan(clientId) {
     useEffect(() => {
         if (!clientId) {
             setPlanStatus('none');
+            setWorkoutStatus('none');
+            setDietStatus('none');
             setWorkoutPlan(null);
             setDietPlan(null);
             setWorkoutGeneratedAt(null);
@@ -150,6 +145,8 @@ export function useClientPlan(clientId) {
 
                 if (remotePlans && remotePlans.planStatus !== 'none') {
                     setPlanStatus(remotePlans.planStatus);
+                    setWorkoutStatus(remotePlans.workoutStatus || 'none');
+                    setDietStatus(remotePlans.dietStatus || 'none');
                     setWorkoutPlan(remotePlans.workoutPlan);
                     setDietPlan(remotePlans.dietPlan);
                     setWorkoutGeneratedAt(remotePlans.workoutGeneratedAt);
@@ -158,33 +155,19 @@ export function useClientPlan(clientId) {
                     if (remotePlans.planStatus === 'ready') {
                         return;
                     }
-                }
-
-                const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
-                const client = clients.find(c => c.clientId === clientId);
-
-                if (client) {
-                    setPlanStatus(client.planStatus || 'none');
-                    setWorkoutPlan(parseWorkout(client.workoutPlan));
-                    setDietPlan(client.dietPlan || null);
-                    setWorkoutGeneratedAt(client.planReadyAt || client.generatedAt || null);
-                    setDietGeneratedAt(client.planReadyAt || client.generatedAt || null);
-                    console.log(`[AirFit] useClientPlan sync for ${clientId}:`, client.planStatus);
-
-                    // If local says none, check the server once for cross-device updates.
-                    if (!client.planStatus || client.planStatus === 'none') {
-                        console.log('[AirFit] Plan "none" locally, checking server for updates...');
-                        await checkPlanRef.current?.();
+                    if (remotePlans.planStatus === 'pending') {
+                        return;
                     }
-                } else {
-                    setPlanStatus('none');
-                    setWorkoutPlan(null);
-                    setDietPlan(null);
-                    setWorkoutGeneratedAt(null);
-                    setDietGeneratedAt(null);
-                    console.log('[AirFit] Client not in local storage, checking server...');
-                    await checkPlanRef.current?.();
                 }
+
+                setPlanStatus('none');
+                setWorkoutStatus('none');
+                setDietStatus('none');
+                setWorkoutPlan(null);
+                setDietPlan(null);
+                setWorkoutGeneratedAt(null);
+                setDietGeneratedAt(null);
+                await checkPlanRef.current?.();
             } catch (e) {
                 console.error('Failed to sync plan status:', e);
             }
@@ -227,27 +210,20 @@ export function useClientPlan(clientId) {
     const markPending = useCallback((planType = 'Workout Plan') => {
         if (!clientId) return;
         setPlanStatus('pending');
+        if (planType === 'Diet Plan') {
+            setDietStatus('pending');
+        } else {
+            setWorkoutStatus('pending');
+        }
         markPlanPending(clientId, planType).catch(error => {
             console.warn('[AirFit] Failed to mark remote plan pending:', error);
         });
         updateClientPlanStatus(clientId, 'pending').catch(error => {
             console.warn('[AirFit] Failed to update remote client status:', error);
         });
-        try {
-            const clients = JSON.parse(localStorage.getItem('airfit_clients') || '[]');
-            const idx = clients.findIndex(c => c.clientId === clientId);
-            if (idx !== -1) {
-                clients[idx].planStatus = 'pending';
-                clients[idx].submittedAt = Date.now();
-                localStorage.setItem('airfit_clients', JSON.stringify(clients));
-                console.log('[AirFit] Client marked as pending');
-            }
-        } catch (e) {
-            console.error('Failed to mark pending:', e);
-        }
     }, [clientId]);
 
-    return { planStatus, workoutPlan, dietPlan, workoutGeneratedAt, dietGeneratedAt, markPending, checkPlan, isLoading };
+    return { planStatus, workoutStatus, dietStatus, workoutPlan, dietPlan, workoutGeneratedAt, dietGeneratedAt, markPending, checkPlan, isLoading };
 }
 
 export default useClientPlan;

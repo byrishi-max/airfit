@@ -4,7 +4,6 @@ import AdminClientTable from '../components/AdminClientTable';
 import { useAdminAuth } from '../hooks/useAuth';
 import { createClientRecord, deleteClientRecord, listClients } from '../utils/clientRepository';
 import { sendPortalInvite } from '../utils/inviteClient';
-import { deleteClient } from '../utils/storage';
 
 export default function AdminDashboard() {
     const { logout } = useAdminAuth();
@@ -23,8 +22,7 @@ export default function AdminDashboard() {
     const loadClients = async () => {
         try {
             const list = await listClients();
-            const deletedIds = JSON.parse(localStorage.getItem('deleted_clients') || '[]');
-            setClients(list.filter(c => !deletedIds.includes(c.clientId)));
+            setClients(list);
         } catch (error) {
             console.warn('Could not load clients:', error);
             setClients([]);
@@ -89,7 +87,6 @@ export default function AdminDashboard() {
         } catch (error) {
             console.warn('Remote delete failed, removing local cache only:', error);
         }
-        deleteClient(client.clientId);
         setClients(prev => prev.filter(c => c.clientId !== client.clientId));
         showToast(`Deleted client ${client.name}`, 'success');
     };

@@ -8,33 +8,17 @@ import {
 
 /**
  * Custom hook to manage workout progress for a specific day.
- * It persists data to localStorage to ensure completion status is saved.
+ * Firestore is the source of truth so progress syncs across devices.
  */
 export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1) => {
-    // We use a simple composite key for storage
-    const storageKey = `airfit_progress_${clientId}_${dayKey}`;
-    const dayDoneKey = `airfit_daydone_${clientId}_${dayKey}`;
-
-    // Helper to get freshest data
-    const getSavedProgress = () => {
-        try {
-            const saved = localStorage.getItem(storageKey);
-            return saved ? JSON.parse(saved) : {};
-        } catch (e) {
-            console.error("Failed to parse progress:", e);
-            return {};
-        }
-    };
-
-    // Initialize state with stored data
-    const [progress, setProgress] = useState(getSavedProgress);
-    const [dayDone, setDayDone] = useState(() => localStorage.getItem(dayDoneKey) === 'true');
+    const [progress, setProgress] = useState({});
+    const [dayDone, setDayDone] = useState(false);
 
     // Sync state if dayKey or clientId changes
     // This prevents "flashes" of previous day's data when switching days
     useEffect(() => {
-        setProgress(getSavedProgress());
-        setDayDone(localStorage.getItem(dayDoneKey) === 'true');
+        setProgress({});
+        setDayDone(false);
 
         let cancelled = false;
         async function loadRemoteProgress() {
@@ -58,11 +42,6 @@ export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1)
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [clientId, dayKey, weekNumber]);
-
-    // Persist to localStorage whenever progress changes
-    useEffect(() => {
-        localStorage.setItem(storageKey, JSON.stringify(progress));
-    }, [progress, storageKey]);
 
     const toggleComplete = (exerciseName) => {
         let nextValue = false;
@@ -96,7 +75,6 @@ export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1)
 
     const markDayDone = () => {
         setDayDone(true);
-        localStorage.setItem(dayDoneKey, 'true');
         markDayDoneRemote(clientId, weekNumber, dayKey).catch(error => {
             console.warn('[AirFit] Failed to save remote day completion:', error);
         });

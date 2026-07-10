@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { getLocalExerciseCompleted, getWeeklyProgress } from '../utils/progressRepository';
+import { getWeeklyProgress } from '../utils/progressRepository';
 
 const STANDARD_DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
@@ -49,13 +49,13 @@ export default function WeeklyChart({ clientId, weekNumber, workoutJson }) {
                         row.completed
                     );
                 }
-                return getLocalExerciseCompleted(clientId, weekNumber, dayName, ex.name);
+                return false;
             }).length;
             const percent = Math.round((done / exs.length) * 100);
 
             return { name: dayName, total: exs.length, done, percent, isRest: false };
         });
-    }, [clientId, weekNumber, workoutJson, remoteProgress]);
+    }, [workoutJson, remoteProgress]);
 
     const totalDone = data.reduce((a, b) => a + b.done, 0);
     const totalExs = data.reduce((a, b) => a + b.total, 0);
