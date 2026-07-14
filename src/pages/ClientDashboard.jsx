@@ -35,7 +35,7 @@ const emptySummary = {
 export default function ClientDashboard() {
     const { client, logout } = useClientAuth();
     const navigate = useNavigate();
-    const { planStatus, workoutStatus, dietStatus, workoutPlan, dietPlan, workoutGeneratedAt } = useClientPlan(client?.clientId);
+    const { planStatus, workoutStatus, dietStatus, workoutPlan, dietPlan, workoutGeneratedAt, checkPlan, isLoading } = useClientPlan(client?.clientId);
     const [activeForm, setActiveForm] = useState(null);
     const [summary, setSummary] = useState(emptySummary);
     const [waterAmount, setWaterAmount] = useState('500');
@@ -132,6 +132,30 @@ export default function ClientDashboard() {
                 }}
             >
                 View Plan
+            </button>
+        </div>
+    );
+
+    const PendingPlanCard = ({ title, icon: Icon, tone }) => (
+        <div
+            className={`fit-home-card ${tone === 'primary' ? 'is-primary' : ''}`}
+            style={{ pointerEvents: 'auto', cursor: 'default', opacity: 1 }}
+        >
+            <span className="fit-home-card-icon"><Icon size={22} /></span>
+            <strong>{title}</strong>
+            <small style={{ color: '#FF6B00', fontWeight: 600 }}>Plan processing</small>
+            <button
+                onClick={checkPlan}
+                disabled={isLoading}
+                style={{
+                    marginTop: '8px', padding: '8px 16px', borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #FF6B00, #ff4500)',
+                    color: '#fff', fontSize: '12px', fontWeight: '700',
+                    border: 'none', cursor: isLoading ? 'wait' : 'pointer', width: '100%',
+                    opacity: isLoading ? 0.75 : 1
+                }}
+            >
+                {isLoading ? 'Checking...' : 'Check Status'}
             </button>
         </div>
     );
@@ -264,11 +288,24 @@ export default function ClientDashboard() {
                             tone="primary"
                         />
                     )}
+                    {!hasWorkout && workoutStatus === 'pending' && (
+                        <PendingPlanCard
+                            title="Daily Workout"
+                            icon={Dumbbell}
+                            tone="primary"
+                        />
+                    )}
                     {hasDiet && (
                         <PlanExistsCard
                             title="Today's Diet"
                             icon={Utensils}
                             navigateTo="/client/plan?tab=diet"
+                        />
+                    )}
+                    {!hasDiet && dietStatus === 'pending' && (
+                        <PendingPlanCard
+                            title="Today's Diet"
+                            icon={Utensils}
                         />
                     )}
                     {/* Regular action cards */}

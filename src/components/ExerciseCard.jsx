@@ -22,8 +22,23 @@ function getVideoId(exercise) {
     return match?.[1] || null;
 }
 
+function getDisplayName(exercise) {
+    const curatedTitle = String(exercise?.videoTitle || '').trim();
+    const isCurated = String(exercise?.channelName || '').toLowerCase().includes('curated');
+    const looksLikeExerciseName =
+        curatedTitle &&
+        curatedTitle.length <= 60 &&
+        !/[|:]/.test(curatedTitle) &&
+        !/^how\s+to/i.test(curatedTitle) &&
+        !/\bguide\b/i.test(curatedTitle);
+
+    if (isCurated && looksLikeExerciseName) return curatedTitle;
+    return exercise?.name || curatedTitle || 'Exercise';
+}
+
 export default function ExerciseCard({ exercise, completed, toggleComplete }) {
     const videoId = getVideoId(exercise);
+    const displayName = getDisplayName(exercise);
     const sets = exercise?.sets || '3';
     const reps = exercise?.reps || '10-12';
     const durationSeconds = Number(exercise?.durationSeconds || 0);
@@ -33,11 +48,11 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
     return (
         <article className={`fit-exercise-card ${completed ? 'is-complete' : ''}`}>
             <div className="fit-exercise-main">
-                <button className="fit-check-button" onClick={toggleComplete} aria-label={`Mark ${exercise.name} complete`}>
+                <button className="fit-check-button" onClick={toggleComplete} aria-label={`Mark ${displayName} complete`}>
                     {completed && <Check size={16} strokeWidth={3} />}
                 </button>
                 <div className="fit-exercise-copy">
-                    <h3>{exercise.name}</h3>
+                    <h3>{displayName}</h3>
                     <p>{sets} sets x {reps} reps</p>
                 </div>
             </div>
@@ -54,7 +69,7 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
                     <div className="fit-video-frame">
                         <iframe
                             src={`https://www.youtube.com/embed/${videoId}?modestbranding=1&rel=0`}
-                            title={`${exercise.name} technique video`}
+                            title={`${displayName} technique video`}
                             loading="lazy"
                             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                             allowFullScreen

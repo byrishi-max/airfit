@@ -38,25 +38,47 @@ export function useClientPlan(clientId) {
     const isLoadingRef = useRef(false);
     const checkPlanRef = useRef(null);
     const planStatusRef = useRef(planStatus);
+    const workoutStatusRef = useRef(workoutStatus);
+    const dietStatusRef = useRef(dietStatus);
 
     useEffect(() => {
         planStatusRef.current = planStatus;
     }, [planStatus]);
 
+    useEffect(() => {
+        workoutStatusRef.current = workoutStatus;
+    }, [workoutStatus]);
+
+    useEffect(() => {
+        dietStatusRef.current = dietStatus;
+    }, [dietStatus]);
+
     const applyPlanData = useCallback((data) => {
         const parsed = parseWorkout(data.workoutJson);
+        let applied = false;
 
         if (data.workoutJson) {
             setWorkoutPlan(parsed);
             setWorkoutGeneratedAt(data.generatedAt || new Date().toISOString());
             setWorkoutStatus('ready');
+            applied = true;
         }
         if (data.dietHtml) {
             setDietPlan(data.dietHtml);
             setDietGeneratedAt(data.generatedAt || new Date().toISOString());
             setDietStatus('ready');
+            applied = true;
         }
-        setPlanStatus('ready');
+
+        const nextWorkoutStatus = data.workoutJson ? 'ready' : workoutStatusRef.current;
+        const nextDietStatus = data.dietHtml ? 'ready' : dietStatusRef.current;
+        setPlanStatus(
+            nextWorkoutStatus === 'pending' || nextDietStatus === 'pending'
+                ? 'pending'
+                : applied
+                    ? 'ready'
+                    : planStatusRef.current
+        );
     }, []);
 
     const checkPlan = useCallback(async () => {
@@ -74,11 +96,22 @@ export function useClientPlan(clientId) {
             if (!response.ok) {
                 if (response.status === 404) {
                     console.log('[AirFit] Plan not ready yet (404)');
-                    // Keep "pending" while backend is still processing
-                    if (planStatusRef.current !== 'pending') setPlanStatus('not_started');
+                    // Keep per-plan pending state while backend is still processing.
+                    if (
+                        planStatusRef.current !== 'pending' &&
+                        workoutStatusRef.current !== 'pending' &&
+                        dietStatusRef.current !== 'pending'
+                    ) {
+                        setPlanStatus('not_started');
+                    }
                 } else {
                     console.warn(`[AirFit] API returned ${response.status}`);
-                    setPlanStatus('not_started');
+                    if (
+                        workoutStatusRef.current !== 'pending' &&
+                        dietStatusRef.current !== 'pending'
+                    ) {
+                        setPlanStatus('not_started');
+                    }
                 }
                 return false;
             }
@@ -98,10 +131,15 @@ export function useClientPlan(clientId) {
                     await saveGeneratedPlan(clientId, data).catch(error => {
                         console.warn('[AirFit] Failed to save generated plan to Firebase:', error);
                     });
-                    await updateClientPlanStatus(clientId, 'ready').catch(error => {
-                        console.warn('[AirFit] Failed to update remote client ready status:', error);
-                    });
                     applyPlanData(data);
+                    const hasPendingAfterApply =
+                        (!data.workoutJson && workoutStatusRef.current === 'pending') ||
+                        (!data.dietHtml && dietStatusRef.current === 'pending');
+                    if (!hasPendingAfterApply) {
+                        await updateClientPlanStatus(clientId, 'ready').catch(error => {
+                            console.warn('[AirFit] Failed to update remote client ready status:', error);
+                        });
+                    }
                     return true;
                 } else {
                     console.warn('[AirFit] Plan is marked ready but workoutJson and dietHtml are both missing!');
@@ -178,7 +216,8 @@ export function useClientPlan(clientId) {
 
     // Polling logic
     useEffect(() => {
-        if (!clientId || planStatus !== 'pending') return;
+        const shouldPoll = planStatus === 'pending' || workoutStatus === 'pending' || dietStatus === 'pending';
+        if (!clientId || !shouldPoll) return;
 
         console.log('[AirFit] Starting polling for', clientId);
         let stopped = false;
@@ -205,7 +244,7 @@ export function useClientPlan(clientId) {
             clearTimeout(timeout);
             clearInterval(interval);
         };
-    }, [clientId, planStatus]);
+    }, [clientId, planStatus, workoutStatus, dietStatus]);
 
     const markPending = useCallback((planType = 'Workout Plan') => {
         if (!clientId) return;
