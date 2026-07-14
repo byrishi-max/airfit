@@ -642,6 +642,28 @@ input, button, textarea, select {
   border: 0;
 }
 
+.fit-video-missing-link {
+  display: flex;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 94, 0, 0.28);
+  border-radius: var(--fit-radius-md);
+  background: rgba(255, 94, 0, 0.08);
+  color: var(--fit-orange);
+  font-size: 13px;
+  font-weight: 900;
+  line-height: 1.35;
+  text-align: center;
+  text-decoration: none;
+}
+
+.fit-video-missing-link:hover {
+  border-color: rgba(255, 94, 0, 0.55);
+  background: rgba(255, 94, 0, 0.12);
+}
+
 /* ─── Empty States ───────────────────────────────────────────────────────── */
 .fit-empty-card {
   margin: 0 18px 18px;

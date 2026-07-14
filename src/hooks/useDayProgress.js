@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
     getDayDone,
     getExerciseProgressMap,
@@ -13,12 +13,14 @@ import {
 export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1) => {
     const [progress, setProgress] = useState({});
     const [dayDone, setDayDone] = useState(false);
+    const autoMarkedRef = useRef(false);
 
     // Sync state if dayKey or clientId changes
     // This prevents "flashes" of previous day's data when switching days
     useEffect(() => {
         setProgress({});
         setDayDone(false);
+        autoMarkedRef.current = false;
 
         let cancelled = false;
         async function loadRemoteProgress() {
@@ -72,6 +74,20 @@ export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1)
         ? exercises.reduce((sum, ex) => sum + (progress[ex?.name] ? 1 : 0), 0)
         : 0;
     const percent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
+
+    useEffect(() => {
+        if (!clientId || !dayKey || !totalCount || completedCount !== totalCount || dayDone || autoMarkedRef.current) {
+            return;
+        }
+
+        autoMarkedRef.current = true;
+        setDayDone(true);
+        markDayDoneRemote(clientId, weekNumber, dayKey).catch(error => {
+            autoMarkedRef.current = false;
+            setDayDone(false);
+            console.warn('[AirFit] Failed to auto-save remote day completion:', error);
+        });
+    }, [clientId, weekNumber, dayKey, totalCount, completedCount, dayDone]);
 
     const markDayDone = () => {
         setDayDone(true);

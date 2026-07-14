@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
 import { getProgressSummary } from '../utils/progressRepository';
+import { parseWorkoutPlan } from '../utils/planUtils';
 import WeeklyChart from '../components/WeeklyBarChart';
 import CalorieTracker from '../components/CalorieTracker';
 
@@ -32,12 +33,14 @@ export default function ProgressDashboard() {
     useEffect(() => {
         let cancelled = false;
         async function loadSummary() {
-            if (!client || !workoutPlan) {
+            const effectiveWorkoutPlan = workoutPlan || parseWorkoutPlan(client?.workoutPlan);
+            const effectiveGeneratedAt = workoutGeneratedAt || client?.generatedAt;
+            if (!client || !effectiveWorkoutPlan) {
                 setIsLoading(false);
                 return;
             }
             setIsLoading(true);
-            const nextSummary = await getProgressSummary(client.clientId, workoutPlan, workoutGeneratedAt).catch(error => {
+            const nextSummary = await getProgressSummary(client.clientId, effectiveWorkoutPlan, effectiveGeneratedAt).catch(error => {
                 console.warn('[AirFit] Failed to load progress summary:', error);
                 return emptySummary;
             });
@@ -51,6 +54,8 @@ export default function ProgressDashboard() {
             cancelled = true;
         };
     }, [client, workoutPlan, workoutGeneratedAt]);
+
+    const effectiveWorkoutPlan = workoutPlan || parseWorkoutPlan(client?.workoutPlan);
 
     if (!client) {
         return (
@@ -112,7 +117,7 @@ export default function ProgressDashboard() {
                                 <span className="fit-repeat-inline">{summary.streak} day current streak</span>
                             </div>
                         </div>
-                        <WeeklyChart clientId={client.clientId} weekNumber={summary.currentWeek} workoutJson={workoutPlan} />
+                        <WeeklyChart clientId={client.clientId} weekNumber={summary.currentWeek} workoutJson={effectiveWorkoutPlan} />
                     </div>
                     <div className="fit-content-panel fit-progress-calories">
                         <CalorieTracker clientId={client.clientId} />

@@ -132,6 +132,10 @@ export default function WaitingScreen() {
                     maxWidth: 480
                 }}>
                     You can exit now — your plan will be emailed to <span style={{ color: '#34d399' }}>{client?.email || 'your registered email'}</span> when it’s ready.
+                    <br />
+                    <span style={{ color: '#86efac', fontWeight: 500 }}>
+                        If you don&apos;t see it in your inbox, please check your Spam or Junk folder too.
+                    </span>
                 </div>
                 
                 <div style={{ 

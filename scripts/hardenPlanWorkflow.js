@@ -94,9 +94,11 @@ const clientCtx = $('Build Gemini Prompt').first().json;
 const output = [];
 
 const SAFE_FALLBACKS = [
+  ['flat dumbbell press', 'VmB1G1K7v94'],
   ['incline dumbbell press', '8iPEnn-ltC8'],
   ['bench press', 'hWbUlkb5Ms4'],
   ['barbell bench press', 'hWbUlkb5Ms4'],
+  ['dumbbell press', 'VmB1G1K7v94'],
   ['cable fly', 'Iwe6AmxVf7o'],
   ['triceps pushdown', '2-LAMcpzODU'],
   ['triceps extension', 'YbX7Wd8jQ-Q'],
@@ -112,14 +114,21 @@ const SAFE_FALLBACKS = [
   ['romanian deadlift', 'JCXUYuzwNrM'],
   ['leg press', 'IZxyjW7MPJQ'],
   ['standing calf raise', 'YMmgqO8Jo-k'],
+  ['lunge', 'QOVaHwm-Q6U'],
+  ['hamstring curl', 'Orxowest56U'],
+  ['arnold press', '6Z15_WdXmVw'],
+  ['front raise', 'hRJ6tR5-if0'],
   ['overhead press', 'qEwKCR5JCog'],
+  ['shoulder press', 'B-aVuyhvLHU'],
   ['lateral raise', '3VcKaXpzqRo'],
   ['plank', 'pSHjTRCQxIw'],
   ['push-up', 'IODxDxX7oi4'],
   ['push up', 'IODxDxX7oi4'],
   ['mountain climber', 'nmwgirgXLYM'],
   ['burpee', 'TU8QYVW0gDU'],
-  ['dead bug', 'g_BYB0R-4Ws']
+  ['dead bug', 'g_BYB0R-4Ws'],
+  ['glute bridge', 'wPM8icPu6H8'],
+  ['goblet squat', 'MeIiIdhvXT4']
 ];
 
 function parseIsoDuration(value) {
