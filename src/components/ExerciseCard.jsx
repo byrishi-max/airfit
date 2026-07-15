@@ -1,5 +1,15 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Check, PlayCircle } from 'lucide-react';
+import { db } from '../utils/firebaseClient';
+import { doc, getDoc } from 'firebase/firestore';
+
+/** Convert exercise name to Firestore slug — must match seedCuratedVideos.js logic */
+function slugify(text) {
+    return String(text || '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/(^-|-$)+/g, '');
+}
 
 const VIDEO_FALLBACKS = [
     ['bench press', 'hWbUlkb5Ms4'],
@@ -15,15 +25,79 @@ const VIDEO_FALLBACKS = [
     ['leg press', 'IZxyjW7MPJQ'],
 ];
 
-function getVideoId(exercise) {
-    if (exercise?.videoId) return exercise.videoId;
-    const name = exercise?.name?.toLowerCase() || '';
-    const match = VIDEO_FALLBACKS.find(([pattern]) => name.includes(pattern));
+function getHardcodedFallback(name) {
+    const lower = (name || '').toLowerCase();
+    const match = VIDEO_FALLBACKS.find(([pattern]) => lower.includes(pattern));
     return match?.[1] || null;
 }
 
+/**
+ * Looks up a video ID for an exercise:
+ * 1. Use exercise.videoId if already attached by n8n
+ * 2. Query curated_videos Firestore collection by slug
+ * 3. Fall back to hardcoded list
+ * Returns { videoId, loading }
+ */
+function useExerciseVideo(exercise) {
+    const providedId = exercise?.videoId || null;
+    const [videoId, setVideoId] = useState(providedId);
+    const [loading, setLoading] = useState(!providedId);
+
+    useEffect(() => {
+        // If n8n already provided a videoId, use it directly — no lookup needed
+        if (providedId) {
+            setVideoId(providedId);
+            setLoading(false);
+            return;
+        }
+
+        const name = exercise?.name;
+        if (!name) {
+            setLoading(false);
+            return;
+        }
+
+        // Check hardcoded list first (instant, no network)
+        const fallback = getHardcodedFallback(name);
+        if (fallback) {
+            setVideoId(fallback);
+            setLoading(false);
+            return;
+        }
+
+        // Query Firebase curated_videos collection
+        if (!db) {
+            setLoading(false);
+            return;
+        }
+
+        let cancelled = false;
+        setLoading(true);
+        const slug = slugify(name);
+        getDoc(doc(db, 'curated_videos', slug))
+            .then(snapshot => {
+                if (cancelled) return;
+                if (snapshot.exists()) {
+                    setVideoId(snapshot.data().videoId || null);
+                } else {
+                    setVideoId(null);
+                }
+            })
+            .catch(() => {
+                if (!cancelled) setVideoId(null);
+            })
+            .finally(() => {
+                if (!cancelled) setLoading(false);
+            });
+
+        return () => { cancelled = true; };
+    }, [providedId, exercise?.name]);
+
+    return { videoId, loading };
+}
+
 export default function ExerciseCard({ exercise, completed, toggleComplete }) {
-    const videoId = getVideoId(exercise);
+    const { videoId, loading } = useExerciseVideo(exercise);
     const sets = exercise?.sets || '3';
     const reps = exercise?.reps || '10-12';
     const durationSeconds = Number(exercise?.durationSeconds || 0);
@@ -42,14 +116,20 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
                 </div>
             </div>
 
-            {videoId && (
+            {loading ? (
+                <div className="fit-video-block">
+                    <div className="fit-video-label">
+                        <PlayCircle size={15} />
+                        <span>Loading video...</span>
+                    </div>
+                </div>
+            ) : videoId ? (
                 <div className="fit-video-block">
                     <div className="fit-video-label">
                         <PlayCircle size={15} />
                         <span>{exercise.videoTitle || 'Technique video'}</span>
                         {durationLabel && <b>{durationLabel}</b>}
                         {isShortCandidate && <b>Short</b>}
-                        {exercise.videoFallback && <b>Fallback</b>}
                     </div>
                     <div className="fit-video-frame">
                         <iframe
@@ -60,6 +140,21 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
                             allowFullScreen
                         />
                     </div>
+                </div>
+            ) : (
+                <div className="fit-video-block">
+                    <div className="fit-video-label">
+                        <PlayCircle size={15} />
+                        <span>Technique video</span>
+                    </div>
+                    <a
+                        href={`https://www.youtube.com/results?search_query=${encodeURIComponent(exercise.name + ' exercise technique')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="fit-yt-search-btn"
+                    >
+                        Search on YouTube →
+                    </a>
                 </div>
             )}
         </article>

@@ -110,9 +110,9 @@ function normalizeDays(plan) {
             day?.day?.toLowerCase() === `day ${index + 1}`
         );
         const fallback = FALLBACK_WORKOUT.days.find(day => day.day === dayName);
-        // Only force rest on Sunday if the AI plan has no exercises for it
-        if (dayName === 'Sunday' && !matched?.exercises?.length) {
-            return { ...(fallback || {}), day: dayName, muscle: 'Rest', exercises: [] };
+        // Sunday is always a rest day
+        if (dayName === 'Sunday') {
+            return { day: dayName, muscle: 'Rest', exercises: [] };
         }
         if (matched?.exercises?.length) {
             return { ...matched, day: dayName };
