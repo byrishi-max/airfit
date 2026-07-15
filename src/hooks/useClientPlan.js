@@ -56,7 +56,10 @@ export function useClientPlan(clientId) {
             setDietGeneratedAt(data.generatedAt || new Date().toISOString());
             setDietStatus('ready');
         }
-        setPlanStatus('ready');
+        // Only mark overall planStatus ready if we actually received plan content
+        if (data.workoutJson || data.dietHtml) {
+            setPlanStatus('ready');
+        }
     }, []);
 
     const checkPlan = useCallback(async () => {
@@ -85,12 +88,11 @@ export function useClientPlan(clientId) {
             
             const data = await response.json();
             
-            console.log('[AirFit] Status check response:', { // Updated log
+            console.log('[AirFit] Status check response:', {
                 status: data.status,
                 hasWorkoutJson: !!data.workoutJson,
                 hasDietHtml: !!data.dietHtml,
                 planType: data.planType,
-                clientId: data.clientId
             });
 
             if (data.status === 'ready') {
@@ -158,15 +160,11 @@ export function useClientPlan(clientId) {
                     if (remotePlans.planStatus === 'pending') {
                         return;
                     }
+                    // planStatus is something else (e.g. processing) — fall through to poll
+                    return;
                 }
 
-                setPlanStatus('none');
-                setWorkoutStatus('none');
-                setDietStatus('none');
-                setWorkoutPlan(null);
-                setDietPlan(null);
-                setWorkoutGeneratedAt(null);
-                setDietGeneratedAt(null);
+                // Firebase has no plan record at all — check the API endpoint
                 await checkPlanRef.current?.();
             } catch (e) {
                 console.error('Failed to sync plan status:', e);

@@ -116,11 +116,15 @@ function getWorkoutTemplate(workoutPlan) {
 }
 
 function calculateStreak(dayRows = []) {
-  const completedDates = new Set(
-    dayRows
-      .filter(row => row.done && row.done_at)
-      .map(row => new Date(row.done_at).toISOString().split('T')[0])
-  );
+  const completedDates = new Set();
+  for (const row of dayRows) {
+    if (!row.done || !row.done_at) continue;
+    try {
+      completedDates.add(new Date(row.done_at).toISOString().split('T')[0]);
+    } catch {
+      // skip malformed done_at values
+    }
+  }
 
   let streak = 0;
   const cursor = new Date();

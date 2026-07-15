@@ -110,8 +110,9 @@ function normalizeDays(plan) {
             day?.day?.toLowerCase() === `day ${index + 1}`
         );
         const fallback = FALLBACK_WORKOUT.days.find(day => day.day === dayName);
-        if (dayName === 'Sunday') {
-            return { ...(matched || fallback), day: dayName, muscle: 'Rest', exercises: [] };
+        // Only force rest on Sunday if the AI plan has no exercises for it
+        if (dayName === 'Sunday' && !matched?.exercises?.length) {
+            return { ...(fallback || {}), day: dayName, muscle: 'Rest', exercises: [] };
         }
         if (matched?.exercises?.length) {
             return { ...matched, day: dayName };
@@ -136,7 +137,7 @@ export default function WorkoutPlanView() {
     const days = useMemo(() => normalizeDays(parsedWorkout), [parsedWorkout]);
     const currentDayPlan = useMemo(() => days.find(day => day.day === activeDay) || days[0], [days, activeDay]);
     const exercises = currentDayPlan?.exercises || [];
-    const firstName = client?.name?.split(' ')?.[0] || 'Vishall';
+    const firstName = client?.name?.split(' ')?.[0] || 'Athlete';
     const repeatWeek = useMemo(() => getCurrentRepeatWeek(workoutGeneratedAt), [workoutGeneratedAt]);
 
     const {
@@ -303,9 +304,9 @@ function TrainingPlan({
 
             {exercises.length ? (
                 <div className="fit-exercise-list">
-                    {exercises.map(exercise => (
+                    {exercises.map((exercise, idx) => (
                         <ExerciseCard
-                            key={exercise.name}
+                            key={`${exercise.name}-${idx}`}
                             exercise={exercise}
                             completed={isCompleted(exercise.name)}
                             toggleComplete={() => toggleComplete(exercise.name)}

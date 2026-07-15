@@ -10,6 +10,7 @@ import {
     LogOut,
     RefreshCcw,
     Scale,
+    ShieldCheck,
     Target,
     Utensils,
 } from 'lucide-react';
@@ -31,6 +32,31 @@ const emptySummary = {
     dietMealTarget: 4,
     dietDoneToday: false,
 };
+
+// Defined outside to prevent React recreating the component type on every ClientDashboard render
+function PlanExistsCard({ title, icon: Icon, navigateTo, tone, navigate }) {
+    return (
+        <div
+            className={`fit-home-card ${tone === 'primary' ? 'is-primary' : ''}`}
+            style={{ pointerEvents: 'auto', cursor: 'default', opacity: 1 }}
+        >
+            <span className="fit-home-card-icon"><Icon size={22} /></span>
+            <strong>{title}</strong>
+            <small style={{ color: '#FF6B00', fontWeight: 600 }}>Plan already exists</small>
+            <button
+                onClick={() => navigate(navigateTo)}
+                style={{
+                    marginTop: '8px', padding: '8px 16px', borderRadius: '6px',
+                    background: 'linear-gradient(135deg, #FF6B00, #ff4500)',
+                    color: '#fff', fontSize: '12px', fontWeight: '700',
+                    border: 'none', cursor: 'pointer', width: '100%'
+                }}
+            >
+                View Plan
+            </button>
+        </div>
+    );
+}
 
 export default function ClientDashboard() {
     const { client, logout } = useClientAuth();
@@ -67,8 +93,10 @@ export default function ClientDashboard() {
     };
 
     const handleWaterLog = async () => {
-        if (!client?.clientId || !waterAmount) return;
-        await logWater(client.clientId, Number(waterAmount));
+        if (!client?.clientId) return;
+        const amount = Number(waterAmount);
+        if (!amount || amount <= 0 || isNaN(amount)) return;
+        await logWater(client.clientId, amount);
         await refreshSummary();
     };
 
@@ -113,28 +141,6 @@ export default function ClientDashboard() {
     const dietLocked = hasDiet || dietStatus === 'pending' || dietStatus === 'ready';
     const isPending = planStatus === 'pending';
 
-    // Plan-locked card helper: renders when a plan already exists.
-    const PlanExistsCard = ({ title, icon: Icon, navigateTo, tone }) => (
-        <div
-            className={`fit-home-card ${tone === 'primary' ? 'is-primary' : ''}`}
-            style={{ pointerEvents: 'auto', cursor: 'default', opacity: 1 }}
-        >
-            <span className="fit-home-card-icon"><Icon size={22} /></span>
-            <strong>{title}</strong>
-            <small style={{ color: '#FF6B00', fontWeight: 600 }}>Plan already exists</small>
-            <button
-                onClick={() => navigate(navigateTo)}
-                style={{
-                    marginTop: '8px', padding: '8px 16px', borderRadius: '6px',
-                    background: 'linear-gradient(135deg, #FF6B00, #ff4500)',
-                    color: '#fff', fontSize: '12px', fontWeight: '700',
-                    border: 'none', cursor: 'pointer', width: '100%'
-                }}
-            >
-                View Plan
-            </button>
-        </div>
-    );
 
     const cards = [
         // Workout card: locked when plan exists.
@@ -175,7 +181,7 @@ export default function ClientDashboard() {
         { label: 'Water Intake', value: `${Math.round((summary.waterToday || 0) / 100) / 10}L`, detail: `${summary.waterTarget || 3000} ml target`, icon: Droplets },
         { label: 'Weight Tracking', value: summary.latestWeight ? `${summary.latestWeight} kg` : 'Add', detail: 'Latest check-in', icon: Scale },
         { label: 'Streak Counter', value: summary.streak || 0, detail: 'completed days', icon: Target },
-        { label: 'Goals', value: hasWorkout && hasDiet ? 'Active' : 'Setup', detail: hasWorkout && hasDiet ? 'Workout and diet ready' : 'Generate both plans', icon: Target },
+        { label: 'Goals', value: hasWorkout && hasDiet ? 'Active' : 'Setup', detail: hasWorkout && hasDiet ? 'Workout and diet ready' : 'Generate both plans', icon: ShieldCheck },
     ];
 
     return (
@@ -262,6 +268,7 @@ export default function ClientDashboard() {
                             icon={Dumbbell}
                             navigateTo="/client/plan"
                             tone="primary"
+                            navigate={navigate}
                         />
                     )}
                     {hasDiet && (
@@ -269,6 +276,7 @@ export default function ClientDashboard() {
                             title="Today's Diet"
                             icon={Utensils}
                             navigateTo="/client/plan?tab=diet"
+                            navigate={navigate}
                         />
                     )}
                     {/* Regular action cards */}

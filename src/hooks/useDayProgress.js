@@ -74,6 +74,7 @@ export const useDayProgress = (clientId, dayKey, exercises = [], weekNumber = 1)
     const percent = totalCount ? Math.round((completedCount / totalCount) * 100) : 0;
 
     const markDayDone = () => {
+        if (!clientId) return;
         setDayDone(true);
         markDayDoneRemote(clientId, weekNumber, dayKey).catch(error => {
             console.warn('[AirFit] Failed to save remote day completion:', error);
