@@ -4,6 +4,7 @@ import { updateClientPlanStatus } from '../utils/clientRepository';
 import { getClientPlans, markPlanPending, saveGeneratedPlan } from '../utils/planRepository';
 import { fetchWithTimeout } from '../utils/async';
 import { jsonHeaders } from '../utils/apiHeaders';
+import { enhanceWorkoutPlan } from './workoutEnhancer';
 
 /**
  * Safely parse workoutJson — handles double-stringified JSON from n8n.
@@ -47,7 +48,7 @@ export function useClientPlan(clientId) {
         const parsed = parseWorkout(data.workoutJson);
 
         if (data.workoutJson) {
-            setWorkoutPlan(parsed);
+            setWorkoutPlan(enhanceWorkoutPlan(parsed));
             setWorkoutGeneratedAt(data.generatedAt || new Date().toISOString());
             setWorkoutStatus('ready');
         }
@@ -149,7 +150,7 @@ export function useClientPlan(clientId) {
                     setPlanStatus(remotePlans.planStatus);
                     setWorkoutStatus(remotePlans.workoutStatus || 'none');
                     setDietStatus(remotePlans.dietStatus || 'none');
-                    setWorkoutPlan(remotePlans.workoutPlan);
+                    setWorkoutPlan(enhanceWorkoutPlan(remotePlans.workoutPlan));
                     setDietPlan(remotePlans.dietPlan);
                     setWorkoutGeneratedAt(remotePlans.workoutGeneratedAt);
                     setDietGeneratedAt(remotePlans.dietGeneratedAt);

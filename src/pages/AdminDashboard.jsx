@@ -238,7 +238,15 @@ export default function AdminDashboard() {
                                                 <strong style={{ color: '#fff' }}>{d.day} - {d.muscle}</strong>
                                                 <ul style={{ margin: '8px 0 0', color: '#888', paddingLeft: '20px' }}>
                                                     {d.exercises?.map((ex, j) => (
-                                                        <li key={j}>{ex.name} - {ex.sets} sets x {ex.reps} reps</li>
+                                                        <li key={j} style={{ marginBottom: '4px' }}>
+                                                            <span style={{ 
+                                                                color: ex.phase === 'warmup' ? '#fbbf24' : ex.phase === 'cooldown' ? '#60a5fa' : ex.phase === 'core' ? '#f87171' : '#a3e635', 
+                                                                marginRight: '8px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' 
+                                                            }}>
+                                                                [{ex.phase || 'main'}]
+                                                            </span>
+                                                            {ex.name} - {ex.sets} sets x {ex.reps} reps
+                                                        </li>
                                                     ))}
                                                 </ul>
                                             </div>

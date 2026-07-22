@@ -280,6 +280,36 @@ function TrainingPlan({
     dayDone,
     markDayDone,
 }) {
+    const warmups = exercises.filter(e => e.phase === 'warmup');
+    const cores = exercises.filter(e => e.phase === 'core');
+    const cooldowns = exercises.filter(e => e.phase === 'cooldown');
+    const mains = exercises.filter(e => !e.phase || e.phase === 'main');
+
+    const renderPhase = (title, phaseExercises) => {
+        if (!phaseExercises.length) return null;
+        return (
+            <div style={{ marginBottom: '32px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', color: '#fff', margin: '0 0 16px', paddingBottom: '8px', borderBottom: '1px solid #333', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {title === 'Warmup' && '🌅 '}
+                    {title === 'Core & Abs' && '🔥 '}
+                    {title === 'Cool Down' && '🧘 '}
+                    {title === 'Main Workout' && '🏋️ '}
+                    {title}
+                </h3>
+                <div className="fit-exercise-list">
+                    {phaseExercises.map((exercise, idx) => (
+                        <ExerciseCard
+                            key={`${exercise.name}-${idx}`}
+                            exercise={exercise}
+                            completed={isCompleted(exercise.name)}
+                            toggleComplete={() => toggleComplete(exercise.name)}
+                        />
+                    ))}
+                </div>
+            </div>
+        );
+    };
+
     return (
         <section className="fit-content-panel">
             <div className="fit-section-header">
@@ -303,15 +333,11 @@ function TrainingPlan({
             </div>
 
             {exercises.length ? (
-                <div className="fit-exercise-list">
-                    {exercises.map((exercise, idx) => (
-                        <ExerciseCard
-                            key={`${exercise.name}-${idx}`}
-                            exercise={exercise}
-                            completed={isCompleted(exercise.name)}
-                            toggleComplete={() => toggleComplete(exercise.name)}
-                        />
-                    ))}
+                <div>
+                    {renderPhase('Warmup', warmups)}
+                    {renderPhase('Main Workout', mains)}
+                    {renderPhase('Core & Abs', cores)}
+                    {renderPhase('Cool Down', cooldowns)}
                 </div>
             ) : (
                 <div className="fit-empty-card">
