@@ -27,6 +27,7 @@ export default function AdminClientTable({ clients, onViewPlan, onDeleteClient }
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: '#111', borderRadius: '12px', overflow: 'hidden' }}>
                 <thead>
                     <tr style={{ borderBottom: '1px solid #222' }}>
+                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', width: '40px' }}>#</th>
                         <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Name</th>
                         <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Phone</th>
                         <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Email</th>
@@ -35,8 +36,9 @@ export default function AdminClientTable({ clients, onViewPlan, onDeleteClient }
                     </tr>
                 </thead>
                 <tbody>
-                    {clients.map(c => (
+                    {clients.map((c, index) => (
                         <tr key={c.clientId} style={{ borderBottom: '1px solid #1a1a1a' }}>
+                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#666', fontWeight: '600' }}>{index + 1}</td>
                             <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: '#fff' }}>{c.name}</td>
                             <td style={{ padding: '16px 20px', fontSize: '14px', color: '#ccc', fontFamily: 'monospace' }}>{c.phone}</td>
                             <td style={{ padding: '16px 20px', fontSize: '14px', color: '#888' }}>{c.email}</td>

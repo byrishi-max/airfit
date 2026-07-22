@@ -12,8 +12,20 @@ export default function AdminDashboard() {
     const [form, setForm] = useState({ name: '', email: '', phone: '' });
     const [toast, setToast] = useState({ msg: '', type: 'success' });
     const [selectedClient, setSelectedClient] = useState(null);
+    const [activeTab, setActiveTab] = useState('workout');
+    const [searchQuery, setSearchQuery] = useState('');
     const [inviteSending, setInviteSending] = useState(false);
     const [submitStage, setSubmitStage] = useState('idle');
+
+    // Filter clients based on search query (name, email, or phone)
+    const filteredClients = clients.filter(c => {
+        const query = searchQuery.toLowerCase();
+        return (
+            (c.name || '').toLowerCase().includes(query) ||
+            (c.email || '').toLowerCase().includes(query) ||
+            (c.phone || '').includes(query)
+        );
+    });
 
     useEffect(() => {
         loadClients();
@@ -122,8 +134,8 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                <div style={{ display: 'grid', gridTemplateColumns: 'minmax(300px, 350px) 1fr', gap: '40px', alignItems: 'start' }}>
-                    <div style={{ background: '#111', padding: '24px', borderRadius: '16px', border: '1px solid #1a1a1a' }}>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: '1 1 300px', maxWidth: '400px', background: '#111', padding: '24px', borderRadius: '16px', border: '1px solid #1a1a1a' }}>
                         <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '6px', color: '#fff' }}>Add New Client</h2>
                         <p style={{ color: '#555', fontSize: '12px', marginBottom: '24px' }}>Client will receive a portal invite email with their login link.</p>
                         <form onSubmit={handleAddClient} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -150,12 +162,25 @@ export default function AdminDashboard() {
                         </form>
                     </div>
 
-                    <div>
-                        <h2 style={{ fontSize: '20px', fontWeight: '700', marginBottom: '20px', color: '#fff' }}>
-                            Clients Directory
-                            <span style={{ marginLeft: '10px', color: '#555', fontWeight: '400', fontSize: '14px' }}>({clients.length} total)</span>
-                        </h2>
-                        <AdminClientTable clients={clients} onViewPlan={(c) => setSelectedClient(c)} onDeleteClient={handleDeleteClient} />
+                    <div style={{ flex: '2 1 600px', minWidth: 0 }}>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
+                            <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0 }}>
+                                Clients Directory
+                                <span style={{ marginLeft: '10px', color: '#555', fontWeight: '400', fontSize: '14px' }}>({filteredClients.length} total)</span>
+                            </h2>
+                            <input 
+                                type="text"
+                                placeholder="Search by name, phone or email..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                style={{
+                                    padding: '10px 14px', background: '#111', border: '1px solid #333', 
+                                    borderRadius: '8px', color: '#fff', outline: 'none', width: '100%', maxWidth: '300px',
+                                    fontSize: '13px'
+                                }}
+                            />
+                        </div>
+                        <AdminClientTable clients={filteredClients} onViewPlan={(c) => { setSelectedClient(c); setActiveTab('workout'); }} onDeleteClient={handleDeleteClient} />
                     </div>
                 </div>
             </main>
@@ -173,30 +198,61 @@ export default function AdminDashboard() {
                         <div style={{ padding: '20px 24px', borderBottom: '1px solid #222', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                             <div>
                                 <h3 style={{ margin: 0, fontSize: '18px', color: '#fff' }}>{selectedClient.name}'s Plan</h3>
-                                <p style={{ margin: '4px 0 0', fontSize: '13px', color: '#888' }}>{selectedClient.planType || 'Workout Plan'}</p>
                             </div>
                             <button onClick={() => setSelectedClient(null)} style={{ background: '#2a2a2a', border: 'none', color: '#fff', width: '32px', height: '32px', borderRadius: '50%', cursor: 'pointer', fontSize: '14px' }}>x</button>
                         </div>
+                        
+                        <div style={{ display: 'flex', borderBottom: '1px solid #222', background: '#1a1a1a' }}>
+                            <button
+                                onClick={() => setActiveTab('workout')}
+                                style={{
+                                    flex: 1, padding: '16px', background: 'transparent', border: 'none',
+                                    borderBottom: activeTab === 'workout' ? '2px solid #FF5C1A' : '2px solid transparent',
+                                    color: activeTab === 'workout' ? '#fff' : '#888', fontWeight: activeTab === 'workout' ? '700' : '500',
+                                    cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s'
+                                }}
+                            >
+                                Workout Plan
+                            </button>
+                            <button
+                                onClick={() => setActiveTab('diet')}
+                                style={{
+                                    flex: 1, padding: '16px', background: 'transparent', border: 'none',
+                                    borderBottom: activeTab === 'diet' ? '2px solid #FF5C1A' : '2px solid transparent',
+                                    color: activeTab === 'diet' ? '#fff' : '#888', fontWeight: activeTab === 'diet' ? '700' : '500',
+                                    cursor: 'pointer', fontSize: '14px', transition: 'all 0.2s'
+                                }}
+                            >
+                                Diet Plan
+                            </button>
+                        </div>
+
                         <div style={{ padding: '24px', overflowY: 'auto', flex: 1, color: '#ccc', lineHeight: '1.6' }}>
-                            {selectedClient.workoutPlan ? (
-                                <div>
-                                    <p style={{ color: '#FF5C1A', fontWeight: '700' }}>{selectedClient.workoutPlan.greeting}</p>
-                                    <p style={{ color: '#888' }}>{selectedClient.workoutPlan.overview}</p>
-                                    {selectedClient.workoutPlan.days?.map((d, i) => (
-                                        <div key={i} style={{ marginBottom: '16px', background: '#1a1a1a', padding: '12px', borderRadius: '8px' }}>
-                                            <strong style={{ color: '#fff' }}>{d.day} - {d.muscle}</strong>
-                                            <ul style={{ margin: '8px 0 0', color: '#888', paddingLeft: '20px' }}>
-                                                {d.exercises?.map((ex, j) => (
-                                                    <li key={j}>{ex.name} - {ex.sets} sets x {ex.reps} reps</li>
-                                                ))}
-                                            </ul>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : selectedClient.dietPlan ? (
-                                <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan }} />
+                            {activeTab === 'workout' ? (
+                                selectedClient.workoutPlan ? (
+                                    <div>
+                                        <p style={{ color: '#FF5C1A', fontWeight: '700' }}>{selectedClient.workoutPlan.greeting}</p>
+                                        <p style={{ color: '#888' }}>{selectedClient.workoutPlan.overview}</p>
+                                        {selectedClient.workoutPlan.days?.map((d, i) => (
+                                            <div key={i} style={{ marginBottom: '16px', background: '#1a1a1a', padding: '12px', borderRadius: '8px' }}>
+                                                <strong style={{ color: '#fff' }}>{d.day} - {d.muscle}</strong>
+                                                <ul style={{ margin: '8px 0 0', color: '#888', paddingLeft: '20px' }}>
+                                                    {d.exercises?.map((ex, j) => (
+                                                        <li key={j}>{ex.name} - {ex.sets} sets x {ex.reps} reps</li>
+                                                    ))}
+                                                </ul>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <p>No Workout Plan generated yet.</p>
+                                )
                             ) : (
-                                <p>No plan data available yet.</p>
+                                selectedClient.dietPlan ? (
+                                    <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan }} />
+                                ) : (
+                                    <p>No Diet Plan generated yet.</p>
+                                )
                             )}
                         </div>
                     </div>
