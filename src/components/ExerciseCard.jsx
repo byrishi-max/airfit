@@ -12,17 +12,50 @@ function slugify(text) {
 }
 
 const VIDEO_FALLBACKS = [
+    // Chest
     ['bench press', 'hWbUlkb5Ms4'],
-    ['incline dumbbell press', '8iPEnn-ltC8'],
-    ['cable fly', 'Iwe6AmxVf7o'],
-    ['triceps pushdown', '2-LAMcpzODU'],
-    ['triceps extension', 'YbX7Wd8jQ-Q'],
+    ['incline press', '8iPEnn-ltC8'],
+    ['chest press', 'hWbUlkb5Ms4'],
+    ['fly', 'Iwe6AmxVf7o'],
+    ['push up', 'IODxDxX7oi4'],
+    ['pushup', 'IODxDxX7oi4'],
+    ['dip', '2z8JmcrW-As'],
+    
+    // Back
+    ['pull-up', 'eGo4IYvvKU'],
+    ['pullup', 'eGo4IYvvKU'],
+    ['pull up', 'eGo4IYvvKU'],
     ['lat pulldown', 'CAwf7n6Luuc'],
     ['seated cable row', 'GZbfZ033f74'],
+    ['bent-over', 'G8l_8chR5BE'],
+    ['row', 'G8l_8chR5BE'],
+    
+    // Arms
+    ['triceps pushdown', '2-LAMcpzODU'],
+    ['triceps extension', 'YbX7Wd8jQ-Q'],
+    ['tricep', '2-LAMcpzODU'],
     ['dumbbell curl', 'ykJmrZ5v0Oo'],
+    ['bicep', 'ykJmrZ5v0Oo'],
+    ['curl', 'ykJmrZ5v0Oo'],
+    
+    // Shoulders
+    ['shoulder press', 'QAQ64B6HfO8'],
+    ['overhead press', 'QAQ64B6HfO8'],
+    ['lateral raise', '3VcKaXpzqRo'],
+    
+    // Legs
     ['squat', 'bEv6CCg2BC8'],
     ['romanian deadlift', 'JCXUYuzwNrM'],
+    ['deadlift', 'op9kVnSso6Q'],
     ['leg press', 'IZxyjW7MPJQ'],
+    ['lunge', 'D7KaRcUTQeE'],
+    ['leg extension', 'YyvSfVjQeL0'],
+    ['leg curl', 'F488k67BTNo'],
+    ['calf raise', '-M4-G8p8fmc'],
+
+    // Core
+    ['plank', 'pSHjTRCQxIw'],
+    ['crunch', 'Xyd_fa5zoEU'],
 ];
 
 function getHardcodedFallback(name) {
