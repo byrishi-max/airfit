@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import AdminClientTable from '../components/AdminClientTable';
 import { useAdminAuth } from '../hooks/useAuth';
 import { createClientRecord, deleteClientRecord, listClients } from '../utils/clientRepository';
+import { saveGeneratedPlan } from '../utils/planRepository';
 import { sendPortalInvite } from '../utils/inviteClient';
 
 export default function AdminDashboard() {
@@ -16,6 +17,11 @@ export default function AdminDashboard() {
     const [searchQuery, setSearchQuery] = useState('');
     const [inviteSending, setInviteSending] = useState(false);
     const [submitStage, setSubmitStage] = useState('idle');
+
+    // Editing State
+    const [isEditingDiet, setIsEditingDiet] = useState(false);
+    const [editDietHtml, setEditDietHtml] = useState('');
+    const [isSavingPlan, setIsSavingPlan] = useState(false);
 
     // Filter clients based on search query (name, email, or phone)
     const filteredClients = clients.filter(c => {
@@ -101,6 +107,56 @@ export default function AdminDashboard() {
         }
         setClients(prev => prev.filter(c => c.clientId !== client.clientId));
         showToast(`Deleted client ${client.name}`, 'success');
+    };
+
+    const handleSaveDiet = async () => {
+        if (!selectedClient) return;
+        setIsSavingPlan(true);
+        try {
+            await saveGeneratedPlan(selectedClient.clientId, { dietHtml: editDietHtml });
+            setSelectedClient(prev => ({ ...prev, dietPlan: editDietHtml }));
+            setClients(prev => prev.map(c => c.clientId === selectedClient.clientId ? { ...c, dietPlan: editDietHtml } : c));
+            setIsEditingDiet(false);
+            showToast('Diet plan updated successfully!', 'success');
+        } catch (error) {
+            console.error('Failed to save diet:', error);
+            showToast('Failed to save diet plan.', 'warning');
+        }
+        setIsSavingPlan(false);
+    };
+
+    const handleDeleteExercise = (dayIndex, exerciseIndex) => {
+        const updatedPlan = JSON.parse(JSON.stringify(selectedClient.workoutPlan));
+        updatedPlan.days[dayIndex].exercises.splice(exerciseIndex, 1);
+        setSelectedClient(prev => ({ ...prev, workoutPlan: updatedPlan }));
+    };
+
+    const handleAddExercise = (dayIndex) => {
+        const name = prompt("Exercise Name (e.g. Bench Press):");
+        if (!name) return;
+        const sets = prompt("Sets (e.g. 3):", "3");
+        const reps = prompt("Reps (e.g. 10-12):", "10-12");
+        
+        const updatedPlan = JSON.parse(JSON.stringify(selectedClient.workoutPlan));
+        if (!updatedPlan.days[dayIndex].exercises) {
+            updatedPlan.days[dayIndex].exercises = [];
+        }
+        updatedPlan.days[dayIndex].exercises.push({ name, sets, reps });
+        setSelectedClient(prev => ({ ...prev, workoutPlan: updatedPlan }));
+    };
+
+    const handleSaveWorkout = async () => {
+        if (!selectedClient) return;
+        setIsSavingPlan(true);
+        try {
+            await saveGeneratedPlan(selectedClient.clientId, { workoutJson: selectedClient.workoutPlan });
+            setClients(prev => prev.map(c => c.clientId === selectedClient.clientId ? { ...c, workoutPlan: selectedClient.workoutPlan } : c));
+            showToast('Workout plan updated successfully!', 'success');
+        } catch (error) {
+            console.error('Failed to save workout:', error);
+            showToast('Failed to save workout plan.', 'warning');
+        }
+        setIsSavingPlan(false);
     };
 
     return (
@@ -231,23 +287,39 @@ export default function AdminDashboard() {
                             {activeTab === 'workout' ? (
                                 selectedClient.workoutPlan ? (
                                     <div>
-                                        <p style={{ color: '#FF5C1A', fontWeight: '700' }}>{selectedClient.workoutPlan.greeting}</p>
-                                        <p style={{ color: '#888' }}>{selectedClient.workoutPlan.overview}</p>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                                            <p style={{ color: '#FF5C1A', fontWeight: '700', margin: 0 }}>{selectedClient.workoutPlan.greeting}</p>
+                                            <button onClick={handleSaveWorkout} disabled={isSavingPlan} style={{ padding: '8px 16px', background: '#FF5C1A', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                                {isSavingPlan ? 'Saving...' : 'Save Workout Changes'}
+                                            </button>
+                                        </div>
                                         {selectedClient.workoutPlan.days?.map((d, i) => (
-                                            <div key={i} style={{ marginBottom: '16px', background: '#1a1a1a', padding: '12px', borderRadius: '8px' }}>
-                                                <strong style={{ color: '#fff' }}>{d.day} - {d.muscle}</strong>
-                                                <ul style={{ margin: '8px 0 0', color: '#888', paddingLeft: '20px' }}>
-                                                    {d.exercises?.map((ex, j) => (
-                                                        <li key={j} style={{ marginBottom: '4px' }}>
-                                                            <span style={{ 
-                                                                color: ex.phase === 'warmup' ? '#fbbf24' : ex.phase === 'cooldown' ? '#60a5fa' : ex.phase === 'core' ? '#f87171' : '#a3e635', 
-                                                                marginRight: '8px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' 
-                                                            }}>
-                                                                [{ex.phase || 'main'}]
-                                                            </span>
-                                                            {ex.name} - {ex.sets} sets x {ex.reps} reps
+                                            <div key={i} style={{ marginBottom: '16px', background: '#1a1a1a', padding: '16px', borderRadius: '8px', border: '1px solid #333' }}>
+                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+                                                    <strong style={{ color: '#fff', fontSize: '16px' }}>{d.day} - {d.muscle}</strong>
+                                                    <button onClick={() => handleAddExercise(i)} style={{ background: 'transparent', border: '1px dashed #555', color: '#aaa', padding: '4px 10px', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' }}>
+                                                        + Add Exercise
+                                                    </button>
+                                                </div>
+                                                <ul style={{ margin: 0, color: '#888', paddingLeft: '0', listStyle: 'none' }}>
+                                                    {d.exercises?.length > 0 ? d.exercises.map((ex, j) => (
+                                                        <li key={j} style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                                                            <div>
+                                                                <span style={{ 
+                                                                    color: ex.phase === 'warmup' ? '#fbbf24' : ex.phase === 'cooldown' ? '#60a5fa' : ex.phase === 'core' ? '#f87171' : '#a3e635', 
+                                                                    marginRight: '8px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' 
+                                                                }}>
+                                                                    [{ex.phase || 'main'}]
+                                                                </span>
+                                                                <span style={{ color: '#fff' }}>{ex.name}</span> <span style={{ color: '#666' }}>— {ex.sets} sets x {ex.reps} reps</span>
+                                                            </div>
+                                                            <button onClick={() => handleDeleteExercise(i, j)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', opacity: 0.7 }} title="Delete Exercise">
+                                                                ✖
+                                                            </button>
                                                         </li>
-                                                    ))}
+                                                    )) : (
+                                                        <li style={{ fontSize: '13px', color: '#555', fontStyle: 'italic' }}>No exercises for this day.</li>
+                                                    )}
                                                 </ul>
                                             </div>
                                         ))}
@@ -257,7 +329,31 @@ export default function AdminDashboard() {
                                 )
                             ) : (
                                 selectedClient.dietPlan ? (
-                                    <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan }} />
+                                    isEditingDiet ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
+                                                <p style={{ margin: 0, color: '#888' }}>Editing raw Diet HTML.</p>
+                                                <button onClick={handleSaveDiet} disabled={isSavingPlan} style={{ padding: '8px 16px', background: '#FF5C1A', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                                    {isSavingPlan ? 'Saving...' : 'Save Diet Changes'}
+                                                </button>
+                                            </div>
+                                            <textarea 
+                                                value={editDietHtml}
+                                                onChange={(e) => setEditDietHtml(e.target.value)}
+                                                style={{ flex: 1, minHeight: '300px', width: '100%', padding: '16px', background: '#0C0C0C', color: '#ccc', border: '1px solid #333', borderRadius: '8px', fontFamily: 'monospace', fontSize: '13px', resize: 'vertical' }}
+                                            />
+                                            <button onClick={() => setIsEditingDiet(false)} style={{ marginTop: '16px', padding: '8px', background: 'transparent', border: '1px solid #333', color: '#888', borderRadius: '6px', cursor: 'pointer', alignSelf: 'flex-start' }}>Cancel</button>
+                                        </div>
+                                    ) : (
+                                        <div>
+                                            <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '16px' }}>
+                                                <button onClick={() => { setEditDietHtml(selectedClient.dietPlan); setIsEditingDiet(true); }} style={{ padding: '8px 16px', background: '#2a2a2a', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
+                                                    ✎ Edit Diet HTML
+                                                </button>
+                                            </div>
+                                            <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan }} style={{ background: '#1a1a1a', padding: '24px', borderRadius: '8px', border: '1px solid #2a2a2a' }} />
+                                        </div>
+                                    )
                                 ) : (
                                     <p>No Diet Plan generated yet.</p>
                                 )
