@@ -39,7 +39,12 @@ function getHardcodedFallback(name) {
  * Returns { videoId, loading }
  */
 function useExerciseVideo(exercise) {
-    const providedId = exercise?.videoId || null;
+    let providedId = exercise?.videoId || null;
+    // Reject the n8n hardcoded dummy fallback video (Push up video) so we can query our real DB
+    if (providedId === 'IODxDxX7oi4') {
+        providedId = null;
+    }
+    
     const [videoId, setVideoId] = useState(providedId);
     const [loading, setLoading] = useState(!providedId);
 
