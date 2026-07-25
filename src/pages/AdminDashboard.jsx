@@ -153,9 +153,18 @@ export default function AdminDashboard() {
         setEditExForm({ name: ex.name, sets: ex.sets || '', reps: ex.reps || '', videoId: ex.videoId || '', phase: ex.phase || 'main' });
     };
 
+    const extractYoutubeId = (str) => {
+        if (!str) return '';
+        const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+        return match ? match[1] : str.trim();
+    };
+
     const handleSaveExerciseEdit = () => {
         const updatedPlan = JSON.parse(JSON.stringify(selectedClient.workoutPlan));
-        updatedPlan.days[editingExercise.dayIndex].exercises[editingExercise.exerciseIndex] = { ...editExForm };
+        updatedPlan.days[editingExercise.dayIndex].exercises[editingExercise.exerciseIndex] = {
+            ...editExForm,
+            videoId: extractYoutubeId(editExForm.videoId)
+        };
         setSelectedClient(prev => ({ ...prev, workoutPlan: updatedPlan }));
         setEditingExercise(null);
     };
@@ -326,7 +335,7 @@ export default function AdminDashboard() {
                                                                         <input type="text" value={editExForm.reps} onChange={e => setEditExForm({...editExForm, reps: e.target.value})} placeholder="Reps" style={{ flex: 1, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
                                                                     </div>
                                                                     <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                                        <input type="text" value={editExForm.videoId || ''} onChange={e => setEditExForm({...editExForm, videoId: e.target.value})} placeholder="YouTube Video ID (Optional)" style={{ flex: 2, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
+                                                                        <input type="text" value={editExForm.videoId || ''} onChange={e => setEditExForm({...editExForm, videoId: e.target.value})} placeholder="YouTube Link or ID (Optional)" style={{ flex: 2, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
                                                                         <button onClick={handleSaveExerciseEdit} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
                                                                         <button onClick={() => setEditingExercise(null)} style={{ background: 'transparent', border: '1px solid #555', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
                                                                     </div>
