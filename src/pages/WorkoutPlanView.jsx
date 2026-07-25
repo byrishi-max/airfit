@@ -360,14 +360,11 @@ function DietPlanDetail({ firstName, activeDay, rawDiet }) {
     const meals = MEALS_BY_DAY[activeDay] || MEALS_BY_DAY.Monday;
 
     if (rawDiet) {
+        const cleanDiet = rawDiet.replace(/```html/gi, '').replace(/```/g, '').trim();
         return (
             <section className="fit-content-panel fit-diet-detail">
-                <p className="fit-diet-greeting">Hi {firstName}!</p>
-                <button className="fit-diet-title" type="button">
-                    Personalised Diet Plan
-                </button>
                 <div className="fit-generated-diet is-open">
-                    <div dangerouslySetInnerHTML={{ __html: rawDiet }} />
+                    <div dangerouslySetInnerHTML={{ __html: cleanDiet }} />
                 </div>
             </section>
         );

@@ -384,7 +384,7 @@ export default function AdminDashboard() {
                                                     ✎ Edit Diet HTML
                                                 </button>
                                             </div>
-                                            <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan }} style={{ background: '#1a1a1a', padding: '24px', borderRadius: '8px', border: '1px solid #2a2a2a' }} />
+                                            <div dangerouslySetInnerHTML={{ __html: selectedClient.dietPlan?.replace(/```html/gi, '').replace(/```/g, '').trim() }} style={{ background: '#1a1a1a', padding: '24px', borderRadius: '8px', border: '1px solid #2a2a2a' }} />
                                         </div>
                                     )
                                 ) : (
