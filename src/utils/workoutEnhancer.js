@@ -10,25 +10,19 @@ const BEFORE_WORKOUT_VIDEO = {
     phase: 'warmup',
 };
 
-const AFTER_WORKOUT_VIDEO = {
-    name: 'After Workout (Required)',
-    videoId: 'r5QG2Lq1oUo',
+const FIXED_CARDIO = {
+    name: 'Treadmill',
+    videoId: '5bBiW1qKVLc',
     sets: '1',
-    reps: 'Watch',
-    phase: 'cooldown',
+    reps: '10-15 mins',
+    phase: 'warmup'
 };
 
-const CARDIO_OPTIONS = [
-    { name: 'Treadmill', videoId: '5bBiW1qKVLc' },
-    { name: 'Cross Trainer', videoId: 'vAiUh0P_XmY' },
-    { name: 'Lateral Cross Trainer', videoId: 'Q8KoScI2o20' },
-    { name: 'Stationary Cycling', videoId: 'dieOsJlsvpM' },
-];
-
-const STRETCHING_OPTIONS = [
+const COOLDOWN_OPTIONS = [
     // Light Cardio
     { name: 'Slow Walking', videoId: '0jxuHIUwolk' },
     { name: 'Easy Spot Jog', videoId: 'f8PzF8bhYoo' },
+    { name: 'Stationary Cycling (Slow)', videoId: 'dieOsJlsvpM' },
     // Upper Body
     { name: 'Neck Stretch (Forward / Side)', videoId: '6Tr3GLfySYo' },
     { name: 'Shoulder Stretch (Cross-Body)', videoId: 'aIq0fLi8iak' },
@@ -63,15 +57,43 @@ const STRETCHING_OPTIONS = [
 ];
 
 const AB_OPTIONS = [
-    { name: 'Crunches' },
-    { name: 'Plank' },
-    { name: 'Leg Raises' },
-    { name: 'Bicycle Crunches' },
-    { name: 'Russian Twists' },
-    { name: 'Mountain Climbers' },
-    { name: 'Hollow Body Hold' },
-    { name: 'V-Ups' },
-    { name: 'Dead Bug' }
+    // Bodyweight
+    { name: 'Crunches', videoId: 'NnVhqMQRvmM' },
+    { name: 'Sit-Ups', videoId: 'onaQ0v_J5uU' },
+    { name: 'Reverse Crunches', videoId: 'XY8KzdDcMFg' },
+    { name: 'Leg Raises', videoId: 'JB2oyawG9KI' },
+    { name: 'Hanging Leg Raises', videoId: 'Yrtvs-nEnk0' },
+    { name: 'Flutter Kicks', videoId: 'ZB1SwBRVLCc' },
+    { name: 'Scissor Kicks', videoId: 'CcvAr4JYo0U' },
+    { name: 'Mountain Climbers', videoId: 'kLh-uczlPLg' },
+    // Oblique
+    { name: 'Russian Twists', videoId: 'Tau0hsW8iR0' },
+    { name: 'Bicycle Crunches', videoId: 'wnuLak2onoA' },
+    { name: 'Side Crunches', videoId: 'q0QyCrpiNgI' },
+    { name: 'Heel Touches', videoId: 'RQRKLIpwIJs' },
+    { name: 'Side Plank Dips', videoId: '9dNL_mtObGQ' },
+    // Core Stability
+    { name: 'Plank', videoId: 'pvIjsG5Svck' },
+    { name: 'Side Plank', videoId: 'N_s9em1xTqU' },
+    { name: 'Plank Shoulder Taps', videoId: '8rgurWd-PB8' },
+    { name: 'Hollow Body Hold', videoId: 'EsnM8eBtazU' },
+    { name: 'Dead Bug', videoId: 'jbWmbhElf3Q' },
+    { name: 'Bird Dog', videoId: 'vzU5xrs1gMQ' },
+    // Machine / Cable
+    { name: 'Cable Crunch', videoId: 'ByZJuk85YuE' },
+    { name: 'Cable Woodchopper (High to Low)', videoId: 'gcGNypjIQDo' },
+    { name: 'Reverse Cable Woodchopper (Low to High)', videoId: 'mvvu8imyMFs' },
+    { name: 'Pallof Press', videoId: 'HXrLaqNIkTs' },
+    // Weighted Abs
+    { name: 'Weighted Crunch', videoId: 'cbwLMF7oJGI' },
+    { name: 'Decline Sit-Ups', videoId: 'N7hf1_vcX5w' },
+    { name: 'Medicine Ball Slams', videoId: 'CkO1mfSBvv4' },
+    { name: 'Medicine Ball Russian Twists', videoId: '2_MsoqTpIJ8' },
+    // Advanced
+    { name: 'Ab Wheel Rollouts', videoId: 'zCsW9L2qi-0' },
+    { name: 'Hanging Windshield Wipers', videoId: 'q-5xzuVDZ0o' },
+    { name: 'L-Sit Hold', videoId: '11B3alBjq-U' },
+    { name: 'V-Ups', videoId: 'NxkukiEoh3g' }
 ];
 
 function getRandomItems(array, count) {
@@ -95,55 +117,61 @@ export function enhanceWorkoutPlan(rawPlan) {
         const isCoreDay = ['Monday', 'Wednesday', 'Friday'].includes(dayObj.day);
 
         // 1. Prepare Warmup
-        const cardio = getRandomItems(CARDIO_OPTIONS, 1)[0];
-        const warmupExercises = [
-            BEFORE_WORKOUT_VIDEO,
-            {
-                name: `Cardio: ${cardio.name}`,
-                videoId: cardio.videoId,
-                sets: '1',
-                reps: '10-15 mins',
-                phase: 'warmup'
-            }
-        ];
+        const warmupExercises = [BEFORE_WORKOUT_VIDEO];
 
-        // 2. Tag Main Exercises
-        const mainExercises = (dayObj.exercises || []).map(ex => ({
+        // 2. Validate and Tag Main Exercises (Min 4)
+        let mainExercises = (dayObj.exercises || []).map(ex => ({
             ...ex,
             phase: 'main'
         }));
+        
+        // Ensure at least 4 main exercises exist
+        if (mainExercises.length > 0 && mainExercises.length < 4) {
+            const needed = 4 - mainExercises.length;
+            for (let i = 0; i < needed; i++) {
+                mainExercises.push({
+                    name: 'Additional Exercise (Please Edit)',
+                    sets: '3',
+                    reps: '10-12',
+                    phase: 'main'
+                });
+            }
+        }
 
-        // 3. Prepare Core (if applicable)
+        // 3. Prepare Cardio (Fixed Treadmill)
+        const cardioExercises = [{ ...FIXED_CARDIO }];
+
+        // 4. Prepare Core (if applicable)
         let coreExercises = [];
         if (isCoreDay) {
             coreExercises = getRandomItems(AB_OPTIONS, 3).map(ab => ({
                 name: ab.name,
+                videoId: ab.videoId,
                 sets: '3',
                 reps: '15-20',
                 phase: 'core'
             }));
         }
 
-        // 4. Prepare Cool-Down
-        const stretches = getRandomItems(STRETCHING_OPTIONS, 3).map(stretch => ({
-            name: `Stretch: ${stretch.name}`,
-            videoId: stretch.videoId,
-            sets: '1',
-            reps: '30-45 secs',
-            phase: 'cooldown'
-        }));
-
+        // 5. Prepare Cool-Down (Exactly 1 random)
+        const cooldownItem = getRandomItems(COOLDOWN_OPTIONS, 1)[0];
         const cooldownExercises = [
-            ...stretches,
-            AFTER_WORKOUT_VIDEO
+            {
+                name: `Cool-Down: ${cooldownItem.name}`,
+                videoId: cooldownItem.videoId,
+                sets: '1',
+                reps: 'Follow along',
+                phase: 'cooldown'
+            }
         ];
 
-        // Combine all phases
+        // Combine all phases in exact order requested
         return {
             ...dayObj,
             exercises: [
                 ...warmupExercises,
                 ...mainExercises,
+                ...cardioExercises,
                 ...coreExercises,
                 ...cooldownExercises
             ]

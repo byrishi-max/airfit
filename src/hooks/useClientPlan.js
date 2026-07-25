@@ -4,7 +4,7 @@ import { updateClientPlanStatus } from '../utils/clientRepository';
 import { getClientPlans, markPlanPending, saveGeneratedPlan } from '../utils/planRepository';
 import { fetchWithTimeout } from '../utils/async';
 import { jsonHeaders } from '../utils/apiHeaders';
-import { enhanceWorkoutPlan } from './workoutEnhancer';
+import { enhanceWorkoutPlan } from '../utils/workoutEnhancer';
 
 /**
  * Safely parse workoutJson — handles double-stringified JSON from n8n.

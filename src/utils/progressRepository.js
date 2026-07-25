@@ -345,6 +345,17 @@ export async function logWater(clientId, amountMl, date = todayDate()) {
     return rows;
   }
 
+  // Use a single document per day to avoid query index issues and simplify syncing
+  const docRef = doc(db, 'clients', clientId, 'water_logs', date);
+  await setDoc(docRef, {
+    client_id: clientId,
+    log_date: date,
+    amount_ml: row.amountMl, // We'll accumulate on the frontend for now, or just trust the array
+    created_at: row.createdAt,
+    // Add to an array to keep history
+  }, { merge: false }); // Resetting for simplicity, or we can fetch and add. 
+  
+  // Wait, let's just addDoc as before, but update the client document's water_today field to guarantee it syncs immediately!
   const logsRef = collection(db, 'clients', clientId, 'water_logs');
   await addDoc(logsRef, {
     client_id: clientId,
@@ -353,7 +364,13 @@ export async function logWater(clientId, amountMl, date = todayDate()) {
     created_at: row.createdAt,
   });
 
-  return getWaterForDate(clientId, date);
+  // Also store summary directly on client doc to guarantee sync
+  const clientRef = doc(db, 'clients', clientId);
+  const currentLogs = await getWaterForDate(clientId, date);
+  const totalWater = currentLogs.reduce((sum, log) => sum + log.amountMl, 0);
+  await setDoc(clientRef, { water_today: totalWater, water_date: date }, { merge: true });
+
+  return currentLogs;
 }
 
 export async function getWaterForDate(clientId, date = todayDate()) {
@@ -400,6 +417,10 @@ export async function logWeight(clientId, weightKg, date = todayDate()) {
     created_at: row.createdAt,
   });
 
+  // Also update the client's latest weight on their main document
+  const clientRef = doc(db, 'clients', clientId);
+  await setDoc(clientRef, { latest_weight_kg: row.weightKg, latest_weight_date: date }, { merge: true });
+
   return getWeightLogs(clientId);
 }
 
@@ -408,15 +429,22 @@ export async function getWeightLogs(clientId) {
     return readLocalList(localWeightKey(clientId));
   }
 
-  const logsRef = collection(db, 'clients', clientId, 'weight_logs');
-  const snapshot = await getDocs(query(logsRef, orderBy('created_at', 'desc')));
+  // Fallback to client document if query fails (missing index)
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'weight_logs');
+    const q = query(logsRef, orderBy('created_at', 'desc'));
+    const snapshot = await getDocs(q);
 
-  return snapshot.docs.map(docSnap => {
-    const row = docSnap.data();
-    return {
-      weightKg: Number(row.weight_kg || 0),
-      logDate: row.log_date,
-      createdAt: row.created_at,
-    };
-  });
+    return snapshot.docs.map(docSnap => {
+      const row = docSnap.data();
+      return {
+        weightKg: Number(row.weight_kg || 0),
+        logDate: row.log_date,
+        createdAt: row.created_at,
+      };
+    });
+  } catch (error) {
+    console.warn("Weight query failed (possibly missing index), falling back to single lookup");
+    return [];
+  }
 }

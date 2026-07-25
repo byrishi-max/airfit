@@ -22,6 +22,10 @@ export default function AdminDashboard() {
     const [isEditingDiet, setIsEditingDiet] = useState(false);
     const [editDietHtml, setEditDietHtml] = useState('');
     const [isSavingPlan, setIsSavingPlan] = useState(false);
+    
+    // Exercise Editing State
+    const [editingExercise, setEditingExercise] = useState(null);
+    const [editExForm, setEditExForm] = useState({ name: '', sets: '', reps: '', videoId: '', phase: 'main' });
 
     // Filter clients based on search query (name, email, or phone)
     const filteredClients = clients.filter(c => {
@@ -129,20 +133,31 @@ export default function AdminDashboard() {
         const updatedPlan = JSON.parse(JSON.stringify(selectedClient.workoutPlan));
         updatedPlan.days[dayIndex].exercises.splice(exerciseIndex, 1);
         setSelectedClient(prev => ({ ...prev, workoutPlan: updatedPlan }));
+        if (editingExercise && editingExercise.dayIndex === dayIndex && editingExercise.exerciseIndex === exerciseIndex) {
+            setEditingExercise(null);
+        }
     };
 
     const handleAddExercise = (dayIndex) => {
-        const name = prompt("Exercise Name (e.g. Bench Press):");
-        if (!name) return;
-        const sets = prompt("Sets (e.g. 3):", "3");
-        const reps = prompt("Reps (e.g. 10-12):", "10-12");
-        
         const updatedPlan = JSON.parse(JSON.stringify(selectedClient.workoutPlan));
-        if (!updatedPlan.days[dayIndex].exercises) {
-            updatedPlan.days[dayIndex].exercises = [];
-        }
-        updatedPlan.days[dayIndex].exercises.push({ name, sets, reps });
+        if (!updatedPlan.days[dayIndex].exercises) updatedPlan.days[dayIndex].exercises = [];
+        const newEx = { name: 'New Exercise', sets: '3', reps: '10-12', phase: 'main', videoId: '' };
+        updatedPlan.days[dayIndex].exercises.push(newEx);
         setSelectedClient(prev => ({ ...prev, workoutPlan: updatedPlan }));
+        setEditingExercise({ dayIndex, exerciseIndex: updatedPlan.days[dayIndex].exercises.length - 1 });
+        setEditExForm(newEx);
+    };
+
+    const handleEditExercise = (dayIndex, exerciseIndex, ex) => {
+        setEditingExercise({ dayIndex, exerciseIndex });
+        setEditExForm({ name: ex.name, sets: ex.sets || '', reps: ex.reps || '', videoId: ex.videoId || '', phase: ex.phase || 'main' });
+    };
+
+    const handleSaveExerciseEdit = () => {
+        const updatedPlan = JSON.parse(JSON.stringify(selectedClient.workoutPlan));
+        updatedPlan.days[editingExercise.dayIndex].exercises[editingExercise.exerciseIndex] = { ...editExForm };
+        setSelectedClient(prev => ({ ...prev, workoutPlan: updatedPlan }));
+        setEditingExercise(null);
     };
 
     const handleSaveWorkout = async () => {
@@ -287,8 +302,7 @@ export default function AdminDashboard() {
                             {activeTab === 'workout' ? (
                                 selectedClient.workoutPlan ? (
                                     <div>
-                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                            <p style={{ color: '#FF5C1A', fontWeight: '700', margin: 0 }}>{selectedClient.workoutPlan.greeting}</p>
+                                        <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px' }}>
                                             <button onClick={handleSaveWorkout} disabled={isSavingPlan} style={{ padding: '8px 16px', background: '#FF5C1A', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                                                 {isSavingPlan ? 'Saving...' : 'Save Workout Changes'}
                                             </button>
@@ -303,19 +317,38 @@ export default function AdminDashboard() {
                                                 </div>
                                                 <ul style={{ margin: 0, color: '#888', paddingLeft: '0', listStyle: 'none' }}>
                                                     {d.exercises?.length > 0 ? d.exercises.map((ex, j) => (
-                                                        <li key={j} style={{ marginBottom: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
-                                                            <div>
-                                                                <span style={{ 
-                                                                    color: ex.phase === 'warmup' ? '#fbbf24' : ex.phase === 'cooldown' ? '#60a5fa' : ex.phase === 'core' ? '#f87171' : '#a3e635', 
-                                                                    marginRight: '8px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' 
-                                                                }}>
-                                                                    [{ex.phase || 'main'}]
-                                                                </span>
-                                                                <span style={{ color: '#fff' }}>{ex.name}</span> <span style={{ color: '#666' }}>— {ex.sets} sets x {ex.reps} reps</span>
-                                                            </div>
-                                                            <button onClick={() => handleDeleteExercise(i, j)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', opacity: 0.7 }} title="Delete Exercise">
-                                                                ✖
-                                                            </button>
+                                                        <li key={j} style={{ marginBottom: '8px', background: '#111', padding: '8px 12px', borderRadius: '6px' }}>
+                                                            {editingExercise && editingExercise.dayIndex === i && editingExercise.exerciseIndex === j ? (
+                                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                                        <input type="text" value={editExForm.name} onChange={e => setEditExForm({...editExForm, name: e.target.value})} placeholder="Exercise Name" style={{ flex: 2, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
+                                                                        <input type="text" value={editExForm.sets} onChange={e => setEditExForm({...editExForm, sets: e.target.value})} placeholder="Sets" style={{ flex: 1, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
+                                                                        <input type="text" value={editExForm.reps} onChange={e => setEditExForm({...editExForm, reps: e.target.value})} placeholder="Reps" style={{ flex: 1, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                                                        <input type="text" value={editExForm.videoId || ''} onChange={e => setEditExForm({...editExForm, videoId: e.target.value})} placeholder="YouTube Video ID (Optional)" style={{ flex: 2, padding: '6px', background: '#222', border: '1px solid #444', color: '#fff', borderRadius: '4px' }} />
+                                                                        <button onClick={handleSaveExerciseEdit} style={{ background: '#22c55e', color: '#fff', border: 'none', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer', fontWeight: 'bold' }}>Save</button>
+                                                                        <button onClick={() => setEditingExercise(null)} style={{ background: 'transparent', border: '1px solid #555', color: '#aaa', padding: '6px 12px', borderRadius: '4px', cursor: 'pointer' }}>Cancel</button>
+                                                                    </div>
+                                                                </div>
+                                                            ) : (
+                                                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                                    <div>
+                                                                        <span style={{ 
+                                                                            color: ex.phase === 'warmup' ? '#fbbf24' : ex.phase === 'cooldown' ? '#60a5fa' : ex.phase === 'core' ? '#f87171' : '#a3e635', 
+                                                                            marginRight: '8px', fontSize: '10px', textTransform: 'uppercase', fontWeight: 'bold' 
+                                                                        }}>
+                                                                            [{ex.phase || 'main'}]
+                                                                        </span>
+                                                                        <span style={{ color: '#fff' }}>{ex.name}</span> <span style={{ color: '#666' }}>— {ex.sets} sets x {ex.reps} reps</span>
+                                                                        {ex.videoId && <span style={{ marginLeft: '8px', fontSize: '10px', color: '#444' }}>ID: {ex.videoId}</span>}
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', gap: '8px' }}>
+                                                                        <button onClick={() => handleEditExercise(i, j, ex)} style={{ background: 'transparent', border: 'none', color: '#3b82f6', cursor: 'pointer', padding: '4px' }} title="Edit Exercise">✎</button>
+                                                                        <button onClick={() => handleDeleteExercise(i, j)} style={{ background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', padding: '4px', opacity: 0.7 }} title="Delete Exercise">✖</button>
+                                                                    </div>
+                                                                </div>
+                                                            )}
                                                         </li>
                                                     )) : (
                                                         <li style={{ fontSize: '13px', color: '#555', fontStyle: 'italic' }}>No exercises for this day.</li>
