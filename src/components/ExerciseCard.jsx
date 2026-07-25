@@ -73,8 +73,14 @@ function getHardcodedFallback(name) {
  */
 function useExerciseVideo(exercise) {
     let providedId = exercise?.videoId || null;
-    // Reject the n8n hardcoded dummy fallback video (Push up video) so we can query our real DB
-    if (providedId === 'IODxDxX7oi4') {
+    let providedTitle = exercise?.videoTitle || null;
+
+    // Reject the n8n hardcoded dummy fallback video or any title containing "Fallback"
+    if (
+        (providedId && typeof providedId === 'string' && providedId.includes('IODxDxX7oi')) ||
+        (providedTitle && providedTitle.toLowerCase().includes('fallback')) ||
+        (providedTitle && providedTitle.toLowerCase().includes('search'))
+    ) {
         providedId = null;
     }
     
@@ -142,6 +148,11 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
     const isShortCandidate = Boolean(exercise?.isShortCandidate || (durationSeconds > 0 && durationSeconds <= 60));
     const durationLabel = durationSeconds ? `${durationSeconds}s` : '';
 
+    const cleanTitle = (exercise.videoTitle || 'Technique video')
+        .replace(/fallback/i, '')
+        .replace(/search/i, '')
+        .trim();
+
     return (
         <article className={`fit-exercise-card ${completed ? 'is-complete' : ''}`}>
             <div className="fit-exercise-main">
@@ -165,7 +176,7 @@ export default function ExerciseCard({ exercise, completed, toggleComplete }) {
                 <div className="fit-video-block">
                     <div className="fit-video-label">
                         <PlayCircle size={15} />
-                        <span>{exercise.videoTitle || 'Technique video'}</span>
+                        <span>{cleanTitle}</span>
                         {durationLabel && <b>{durationLabel}</b>}
                         {isShortCandidate && <b>Short</b>}
                     </div>
