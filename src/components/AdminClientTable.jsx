@@ -23,8 +23,8 @@ export default function AdminClientTable({ clients, onViewPlan, onDeleteClient }
     };
 
     return (
-        <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', minWidth: '800px', borderCollapse: 'collapse', textAlign: 'left', background: '#111', borderRadius: '12px', overflow: 'hidden' }}>
+        <div>
+            <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: '#111', borderRadius: '12px', overflow: 'hidden' }}>
                 <thead>
                     <tr style={{ borderBottom: '1px solid #222' }}>
                         <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', width: '40px', whiteSpace: 'nowrap' }}>#</th>

@@ -244,7 +244,7 @@ export default function AdminDashboard() {
                         </form>
                     </div>
 
-                    <div style={{ flex: '2 1 600px', minWidth: 0 }}>
+                    <div style={{ flex: '99 1 800px', minWidth: 0 }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                             <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0 }}>
                                 Clients Directory
