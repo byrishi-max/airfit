@@ -27,22 +27,22 @@ export default function AdminClientTable({ clients, onViewPlan, onDeleteClient }
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: '#111', borderRadius: '12px', overflow: 'hidden' }}>
                 <thead>
                     <tr style={{ borderBottom: '1px solid #222' }}>
-                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', width: '40px', whiteSpace: 'nowrap' }}>#</th>
-                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Name</th>
-                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Phone</th>
-                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Email</th>
-                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', whiteSpace: 'nowrap' }}>Plan Status</th>
+                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', width: '40px' }}>#</th>
+                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Name</th>
+                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Phone</th>
+                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Email</th>
+                        <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px' }}>Plan Status</th>
                         <th style={{ padding: '16px 20px', fontSize: '12px', color: '#888', fontWeight: '600', textTransform: 'uppercase', letterSpacing: '1px', textAlign: 'right', whiteSpace: 'nowrap' }}>Actions</th>
                     </tr>
                 </thead>
                 <tbody>
                     {clients.map((c, index) => (
                         <tr key={c.clientId} style={{ borderBottom: '1px solid #1a1a1a' }}>
-                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#666', fontWeight: '600', whiteSpace: 'nowrap' }}>{index + 1}</td>
-                            <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: '#fff', whiteSpace: 'nowrap' }}>{c.name}</td>
-                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#ccc', fontFamily: 'monospace', whiteSpace: 'nowrap' }}>{c.phone}</td>
-                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#888', whiteSpace: 'nowrap' }}>{c.email}</td>
-                            <td style={{ padding: '16px 20px', whiteSpace: 'nowrap' }}>{getStatusBadge(c.planStatus)}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#666', fontWeight: '600' }}>{index + 1}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '14px', fontWeight: '600', color: '#fff' }}>{c.name}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#ccc', fontFamily: 'monospace' }}>{c.phone}</td>
+                            <td style={{ padding: '16px 20px', fontSize: '14px', color: '#888', wordBreak: 'break-all' }}>{c.email}</td>
+                            <td style={{ padding: '16px 20px' }}>{getStatusBadge(c.planStatus)}</td>
                             <td style={{ padding: '16px 20px', textAlign: 'right', display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center', whiteSpace: 'nowrap' }}>
                                 {c.planStatus === 'ready' ? (
                                     <button
