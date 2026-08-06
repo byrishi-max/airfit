@@ -216,8 +216,8 @@ export default function AdminDashboard() {
                     </div>
                 )}
 
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '40px', alignItems: 'flex-start' }}>
-                    <div style={{ flex: '1 1 300px', maxWidth: '400px', background: '#111', padding: '24px', borderRadius: '16px', border: '1px solid #1a1a1a' }}>
+                <div style={{ display: 'flex', gap: '30px', alignItems: 'flex-start' }}>
+                    <div style={{ flex: '0 0 300px', background: '#111', padding: '24px', borderRadius: '16px', border: '1px solid #1a1a1a' }}>
                         <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '6px', color: '#fff' }}>Add New Client</h2>
                         <p style={{ color: '#555', fontSize: '12px', marginBottom: '24px' }}>Client will receive a portal invite email with their login link.</p>
                         <form onSubmit={handleAddClient} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
@@ -239,12 +239,12 @@ export default function AdminDashboard() {
                                 marginTop: '8px', padding: '14px', background: inviteSending ? '#2a2a2a' : '#FF5C1A',
                                 color: inviteSending ? '#666' : '#fff', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: inviteSending ? 'not-allowed' : 'pointer'
                             }}>
-                                {submitStage === 'saving' ? 'Saving to Firebase...' : submitStage === 'inviting' ? 'Sending invite...' : '+ Add Client & Send Invite'}
+                                {submitStage === 'saving' ? 'Saving to Firebase...' : submitStage === 'inviting' ? 'Sending invite...' : '+ Add Client'}
                             </button>
                         </form>
                     </div>
 
-                    <div style={{ flex: '99 1 800px', minWidth: 0 }}>
+                    <div style={{ flex: 1, minWidth: 0, overflowX: 'auto' }}>
                         <div style={{ display: 'flex', flexWrap: 'wrap', gap: '16px', alignItems: 'center', justifyContent: 'space-between', marginBottom: '20px' }}>
                             <h2 style={{ fontSize: '20px', fontWeight: '700', color: '#fff', margin: 0 }}>
                                 Clients Directory
