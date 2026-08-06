@@ -5,6 +5,10 @@ export function parseWorkoutPlan(raw) {
   try {
     let parsed = JSON.parse(raw);
     if (typeof parsed === 'string') parsed = JSON.parse(parsed);
+    // Unwrap if AI nested it inside a "workoutPlan" key
+    if (parsed && typeof parsed === 'object' && parsed.workoutPlan) {
+        return parsed.workoutPlan;
+    }
     return parsed;
   } catch (error) {
     console.error('Failed to parse workout plan:', error);

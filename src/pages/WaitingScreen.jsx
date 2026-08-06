@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
+import { getClientPlans } from '../utils/planRepository';
 
 const WAITING_TIPS = [
     "Analyzing your equipment availability...",
@@ -33,12 +34,19 @@ export default function WaitingScreen() {
             setShowRefresh(true);
         }, 12000);
 
+        const pollInterval = setInterval(() => {
+            if (planStatus === 'pending' || planStatus === 'not_started') {
+                checkPlan();
+            }
+        }, 5000);
+
         return () => {
             clearInterval(dotInterval);
             clearInterval(tipInterval);
             clearTimeout(refreshTimer);
+            clearInterval(pollInterval);
         };
-    }, []);
+    }, [planStatus, checkPlan]);
 
     useEffect(() => {
         if (planStatus === 'ready') {
@@ -47,10 +55,22 @@ export default function WaitingScreen() {
     }, [planStatus, navigate]);
 
     const handleManualCheck = async () => {
+        if (!client?.clientId) return;
+        // First check Firebase directly to see if plan was saved
+        try {
+            const remotePlans = await getClientPlans(client.clientId);
+            if (remotePlans && (remotePlans.workoutPlan || remotePlans.dietPlan)) {
+                // Plan exists in Firebase — navigate to dashboard
+                navigate('/client/dashboard');
+                return;
+            }
+        } catch (err) {
+            console.warn('[AirFit] Firebase check failed:', err);
+        }
+        // Then try n8n API poll
         const ready = await checkPlan();
-        if (!ready) {
-            // If still not ready, show a small toast or feedback?
-            // For now, the button states handle it
+        if (ready) {
+            navigate('/client/dashboard');
         }
     };
 

@@ -16,9 +16,11 @@ function parseWorkout(raw) {
     // Try parsing (may be double-stringified)
     try {
         let parsed = JSON.parse(raw);
-        // If still a string after first parse, parse again
         if (typeof parsed === 'string') {
             parsed = JSON.parse(parsed);
+        }
+        if (parsed && typeof parsed === 'object' && parsed.workoutPlan) {
+            return parsed.workoutPlan;
         }
         return parsed;
     } catch (e) {
@@ -155,13 +157,12 @@ export function useClientPlan(clientId) {
                     setWorkoutGeneratedAt(remotePlans.workoutGeneratedAt);
                     setDietGeneratedAt(remotePlans.dietGeneratedAt);
 
-                    if (remotePlans.planStatus === 'ready') {
-                        return;
-                    }
-                    if (remotePlans.planStatus === 'pending') {
-                        return;
-                    }
-                    // planStatus is something else (e.g. processing) — fall through to poll
+                    // Only stop if BOTH plans are done (or no plan is pending)
+                    const hasPending = remotePlans.workoutStatus === 'pending'
+                        || remotePlans.dietStatus === 'pending'
+                        || remotePlans.planStatus === 'pending';
+                    if (!hasPending) return; // nothing left to poll
+                    // fall through — let polling effect start since planStatus is 'pending'
                     return;
                 }
 
@@ -175,11 +176,12 @@ export function useClientPlan(clientId) {
         syncLocalAndRemote();
     }, [clientId]);
 
-    // Polling logic
+    // Polling logic — starts when overall planStatus OR dietStatus is pending
     useEffect(() => {
-        if (!clientId || planStatus !== 'pending') return;
+        const isPending = planStatus === 'pending' || dietStatus === 'pending' || workoutStatus === 'pending';
+        if (!clientId || !isPending) return;
 
-        console.log('[AirFit] Starting polling for', clientId);
+        console.log('[AirFit] Starting polling for', clientId, '(dietStatus:', dietStatus, 'workoutStatus:', workoutStatus, ')');
         let stopped = false;
 
         // Initial check after short delay
@@ -204,7 +206,7 @@ export function useClientPlan(clientId) {
             clearTimeout(timeout);
             clearInterval(interval);
         };
-    }, [clientId, planStatus]);
+    }, [clientId, planStatus, dietStatus, workoutStatus]);
 
     const markPending = useCallback((planType = 'Workout Plan') => {
         if (!clientId) return;

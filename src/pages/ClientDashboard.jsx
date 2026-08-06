@@ -66,7 +66,13 @@ export default function ClientDashboard() {
     const [summary, setSummary] = useState(emptySummary);
     const [waterAmount, setWaterAmount] = useState('500');
     const [weightKg, setWeightKg] = useState('');
+    const [toast, setToast] = useState(null);
     const repeatWeek = getCurrentRepeatWeek(workoutGeneratedAt);
+
+    const showToast = (message, type = 'success') => {
+        setToast({ message, type });
+        setTimeout(() => setToast(null), 2500);
+    };
 
     useEffect(() => {
         let cancelled = false;
@@ -96,13 +102,23 @@ export default function ClientDashboard() {
         if (!client?.clientId) return;
         const amount = Number(waterAmount);
         if (!amount || amount <= 0 || isNaN(amount)) return;
-        await logWater(client.clientId, amount);
+        try {
+            await logWater(client.clientId, amount);
+            showToast(`✅ ${amount}ml logged!`);
+        } catch (err) {
+            showToast('❌ Failed to save water', 'error');
+        }
         await refreshSummary();
     };
 
     const handleWeightLog = async () => {
         if (!client?.clientId || !weightKg) return;
-        await logWeight(client.clientId, Number(weightKg));
+        try {
+            await logWeight(client.clientId, Number(weightKg));
+            showToast(`✅ ${weightKg}kg saved!`);
+        } catch (err) {
+            showToast('❌ Failed to save weight', 'error');
+        }
         setWeightKg('');
         await refreshSummary();
     };
@@ -137,8 +153,8 @@ export default function ClientDashboard() {
 
     const hasWorkout = Boolean(workoutPlan?.days?.length || client.workoutPlan);
     const hasDiet = Boolean(dietPlan || client.dietPlan);
-    const workoutLocked = hasWorkout || workoutStatus === 'pending' || workoutStatus === 'ready';
-    const dietLocked = hasDiet || dietStatus === 'pending' || dietStatus === 'ready';
+    const workoutLocked = hasWorkout || workoutStatus === 'pending' || workoutStatus === 'processing';
+    const dietLocked = hasDiet || dietStatus === 'pending' || dietStatus === 'processing';
     const isPending = planStatus === 'pending';
 
 
@@ -186,6 +202,16 @@ export default function ClientDashboard() {
 
     return (
         <div className="fit-app-shell">
+            {/* Toast notification */}
+            {toast && (
+                <div style={{
+                    position: 'fixed', top: 20, right: 20, zIndex: 9999,
+                    background: toast.type === 'error' ? '#c0392b' : '#27ae60',
+                    color: '#fff', padding: '12px 20px', borderRadius: 12,
+                    fontWeight: 700, fontSize: 14, boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+                    animation: 'fadeUp 0.3s ease'
+                }}>{toast.message}</div>
+            )}
             <header className="fit-topbar">
                 <div className="fit-home-avatar" aria-hidden="true">
                     {client.name?.charAt(0)?.toUpperCase() || 'A'}

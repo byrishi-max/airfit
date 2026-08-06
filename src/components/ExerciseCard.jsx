@@ -11,52 +11,163 @@ function slugify(text) {
         .replace(/(^-|-$)+/g, '');
 }
 
+function extractYoutubeId(str) {
+    if (!str) return '';
+    const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([^&?\/]+)/);
+    return match ? match[1] : str.trim();
+}
+
 const VIDEO_FALLBACKS = [
     // Chest
     ['bench press', 'hWbUlkb5Ms4'],
     ['incline press', '8iPEnn-ltC8'],
+    ['incline dumbbell press', '8iPEnn-ltC8'],
     ['chest press', 'hWbUlkb5Ms4'],
+    ['cable fly', 'Iwe6AmxVf7o'],
+    ['chest fly', 'Iwe6AmxVf7o'],
+    ['flye', 'Iwe6AmxVf7o'],
     ['fly', 'Iwe6AmxVf7o'],
     ['push up', 'IODxDxX7oi4'],
     ['pushup', 'IODxDxX7oi4'],
     ['dip', '2z8JmcrW-As'],
-    
+    ['pec deck', 'Iwe6AmxVf7o'],
+
     // Back
-    ['pull-up', 'eGo4IYvvKU'],
-    ['pullup', 'eGo4IYvvKU'],
-    ['pull up', 'eGo4IYvvKU'],
+    ['pull-up', 'ym1V5H35IpA'],
+    ['pullup', 'ym1V5H35IpA'],
+    ['pull up', 'ym1V5H35IpA'],
+    ['chin up', 'ym1V5H35IpA'],
     ['lat pulldown', 'CAwf7n6Luuc'],
     ['seated cable row', 'GZbfZ033f74'],
+    ['cable row', 'GZbfZ033f74'],
     ['bent-over', 'G8l_8chR5BE'],
-    ['row', 'G8l_8chR5BE'],
-    
-    // Arms
+    ['bent over row', 'G8l_8chR5BE'],
+    ['barbell row', 'G8l_8chR5BE'],
+    ['dumbbell row', 'pYcpY20QaE8'],
+    ['one arm row', 'pYcpY20QaE8'],
+    ['single arm row', 'pYcpY20QaE8'],
+    ['t-bar row', 'G8l_8chR5BE'],
+    ['rack pull', 'op9kVnSso6Q'],
+    ['hyperextension', 'ph3pFa69Y2E'],
+    ['good morning', 'YA-h3n9L4Ko'],
+
+    // Arms - Triceps
     ['triceps pushdown', '2-LAMcpzODU'],
+    ['tricep pushdown', '2-LAMcpzODU'],
     ['triceps extension', 'YbX7Wd8jQ-Q'],
+    ['tricep extension', 'YbX7Wd8jQ-Q'],
+    ['dumbbell extension', 'YbX7Wd8jQ-Q'],
+    ['overhead extension', 'YbX7Wd8jQ-Q'],
+    ['overhead tricep', 'YbX7Wd8jQ-Q'],
+    ['skullcrusher', 'd_KZxkY_0cM'],
+    ['skull crusher', 'd_KZxkY_0cM'],
+    ['ez bar curl', 'd_KZxkY_0cM'],
+    ['close grip bench', 'nEF0bv2FW-4'],
+    ['kickback', 'ZO81bExngMI'],
     ['tricep', '2-LAMcpzODU'],
+
+    // Arms - Biceps
+    ['incline dumbbell curl', '8iPEnn-ltC8'],
+    ['incline curl', '8iPEnn-ltC8'],
+    ['hammer curl', 'zC3nLlEvin4'],
+    ['concentration curl', 'ykJmrZ5v0Oo'],
+    ['preacher curl', 'ykJmrZ5v0Oo'],
+    ['cable curl', 'ykJmrZ5v0Oo'],
+    ['barbell curl', 'ykJmrZ5v0Oo'],
     ['dumbbell curl', 'ykJmrZ5v0Oo'],
     ['bicep', 'ykJmrZ5v0Oo'],
     ['curl', 'ykJmrZ5v0Oo'],
-    
+
     // Shoulders
-    ['shoulder press', 'QAQ64B6HfO8'],
-    ['overhead press', 'QAQ64B6HfO8'],
+    ['shoulder press', 'G2qpTG1Eh40'],
+    ['overhead press', 'G2qpTG1Eh40'],
+    ['military press', 'G2qpTG1Eh40'],
+    ['arnold press', 'B-aVuyhvLHU'],
+    ['dumbbell shoulder press', 'B-aVuyhvLHU'],
     ['lateral raise', '3VcKaXpzqRo'],
-    
+    ['side raise', '3VcKaXpzqRo'],
+    ['front raise', 'h9xfpTrAvkE'],
+    ['front raises', 'h9xfpTrAvkE'],
+    ['face pull', 'rep-qVOkqgk'],
+    ['facepull', 'rep-qVOkqgk'],
+    ['reverse fly', 'ttvoBDBm3PI'],
+    ['rear delt fly', 'ttvoBDBm3PI'],
+    ['rear delt', 'ttvoBDBm3PI'],
+    ['cable lateral', '3VcKaXpzqRo'],
+    ['upright row', 'VG7MeRJGtKo'],
+    ['shrug', 'cJRVVxmytaM'],
+
     // Legs
     ['squat', 'bEv6CCg2BC8'],
     ['romanian deadlift', 'JCXUYuzwNrM'],
+    ['rdl', 'JCXUYuzwNrM'],
     ['deadlift', 'op9kVnSso6Q'],
+    ['sumo deadlift', 'op9kVnSso6Q'],
     ['leg press', 'IZxyjW7MPJQ'],
     ['lunge', 'D7KaRcUTQeE'],
+    ['walking lunge', 'D7KaRcUTQeE'],
+    ['split squat', 'D7KaRcUTQeE'],
+    ['bulgarian split', 'D7KaRcUTQeE'],
     ['leg extension', 'YyvSfVjQeL0'],
     ['leg curl', 'F488k67BTNo'],
+    ['hamstring curl', 'F488k67BTNo'],
     ['calf raise', '-M4-G8p8fmc'],
+    ['seated calf', '-M4-G8p8fmc'],
+    ['hip thrust', 'xDmFkJxPzeM'],
+    ['glute bridge', 'OUgsJ8-Vi0E'],
+    ['goblet squat', 'MeIiIdhvXT4'],
+    ['hack squat', 'EdtPMD0pKbY'],
+    ['step up', 'dQqApCGd5Ss'],
+    ['lateral lunge', 'e5sOHBKx7MU'],
 
-    // Core
+    // Core & Abs
     ['plank', 'pSHjTRCQxIw'],
+    ['side plank', 'K2VljzCC16g'],
     ['crunch', 'Xyd_fa5zoEU'],
+    ['ab crunch', 'Xyd_fa5zoEU'],
+    ['sit up', 'jDwoBqPH0jk'],
+    ['russian twist', 'JyUqwkVpsi8'],
+    ['leg raise', 'l4kQd9eWclI'],
+    ['hanging leg raise', 'hdng3vmclwY'],
+    ['cable crunch', 'Emi6-EpzWiI'],
+    ['mountain climber', 'nmwgirgXLYM'],
+    ['dead bug', 'g_BYB0R-4Ws'],
+    ['bird dog', 'wiFNA3sqjCA'],
+    ['hollow hold', 'LlDNef_Ztsc'],
+    ['ab wheel', 'pTGAMuqHk68'],
+    ['woodchop', 'CtBnSr6c5QI'],
+    ['pallof press', 'AH_QZLm_0-s'],
+    ['toe touch', 'Xyd_fa5zoEU'],
+
+    // Cardio / Conditioning
+    ['burpee', 'TU8QYVW0gDU'],
+    ['jump rope', 'u3zgHI8QhiI'],
+    ['box jump', 'NBY9-kTuHEk'],
+    ['jumping jack', '-nDjECEEQUQ'],
+    ['battle rope', 'pFgxAy7OKCU'],
+
+    // Compound / Other
+    ['clean', 'KjGvwQl8vWE'],
+    ['power clean', 'KjGvwQl8vWE'],
+    ['snatch', 'Xp_aBbm8zKY'],
+    ['thruster', 'BI3-KGkAGoI'],
+    ['farmer', 'Fsop6g8GDDU'],
+    ['carry', 'Fzop6g8GDDU'],
+    ['sled push', 'pEaLTEEkpWM'],
+    ['row machine', 'GZbfZ033f74'],
+    ['cable crossover', 'taI4XduLpTk'],
+    ['cable', 'GZbfZ033f74'],
+
+    // Warmup / Mobility
+    ['cat cow', 'kqnua4rHVVA'],
+    ['hip circle', 'kDa1MvdVrxI'],
+    ['arm circle', '-7BKRB4fGps'],
+    ['high knee', 'D0NumyZy19U'],
+    ['butt kick', '5EDSy4jPoI4'],
+    ['inchworm', 'mRen4kSa05A'],
+    ['world greatest', 'TkxKRgPJsVQ'],
 ];
+
 
 function getHardcodedFallback(name) {
     const lower = (name || '').toLowerCase();
@@ -66,9 +177,9 @@ function getHardcodedFallback(name) {
 
 /**
  * Looks up a video ID for an exercise:
- * 1. Use exercise.videoId if already attached by n8n
- * 2. Query curated_videos Firestore collection by slug
- * 3. Fall back to hardcoded list
+ * 1. Query curated_videos Firestore collection by slug
+ * 2. Fall back to hardcoded list
+ * 3. Fall back to n8n provided ID
  * Returns { videoId, loading }
  */
 function useExerciseVideo(exercise) {
@@ -84,56 +195,48 @@ function useExerciseVideo(exercise) {
         providedId = null;
     }
     
-    const [videoId, setVideoId] = useState(providedId);
-    const [loading, setLoading] = useState(!providedId);
+    const [videoId, setVideoId] = useState(null);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        // If n8n already provided a videoId, use it directly — no lookup needed
-        if (providedId) {
-            setVideoId(providedId);
-            setLoading(false);
-            return;
-        }
-
-        const name = exercise?.name;
-        if (!name) {
-            setLoading(false);
-            return;
-        }
-
-        // Check hardcoded list first (instant, no network)
-        const fallback = getHardcodedFallback(name);
-        if (fallback) {
-            setVideoId(fallback);
-            setLoading(false);
-            return;
-        }
-
-        // Query Firebase curated_videos collection
-        if (!db) {
-            setLoading(false);
-            return;
-        }
-
         let cancelled = false;
-        setLoading(true);
-        const slug = slugify(name);
-        getDoc(doc(db, 'curated_videos', slug))
-            .then(snapshot => {
-                if (cancelled) return;
-                if (snapshot.exists()) {
-                    setVideoId(snapshot.data().videoId || null);
-                } else {
-                    setVideoId(null);
-                }
-            })
-            .catch(() => {
-                if (!cancelled) setVideoId(null);
-            })
-            .finally(() => {
-                if (!cancelled) setLoading(false);
-            });
 
+        async function resolve() {
+            const name = exercise?.name;
+
+            // Step 1: get candidate ID prioritizing DB > Hardcoded > n8n
+            let candidateId = null;
+
+            if (name) {
+                if (db) {
+                    try {
+                        const slug = slugify(name);
+                        const snapshot = await getDoc(doc(db, 'curated_videos', slug));
+                        if (!cancelled && snapshot.exists()) {
+                            candidateId = extractYoutubeId(snapshot.data().videoId) || null;
+                        }
+                    } catch { /* ignore */ }
+                }
+
+                if (!candidateId) {
+                    const fallback = getHardcodedFallback(name);
+                    if (fallback) {
+                        candidateId = fallback;
+                    }
+                }
+            }
+
+            if (!candidateId && providedId) {
+                candidateId = extractYoutubeId(providedId);
+            }
+
+            if (cancelled) return;
+
+            setVideoId(candidateId);
+            setLoading(false);
+        }
+
+        resolve();
         return () => { cancelled = true; };
     }, [providedId, exercise?.name]);
 

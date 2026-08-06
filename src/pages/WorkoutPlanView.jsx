@@ -5,7 +5,6 @@ import { useClientAuth } from '../hooks/useAuth';
 import { useClientPlan } from '../hooks/useClientPlan';
 import CalorieTracker from '../components/CalorieTracker';
 import ExerciseCard from '../components/ExerciseCard';
-import ProgressBar from '../components/ProgressBar';
 import Questionnaire from '../components/Questionnaire';
 import { useDayProgress } from '../hooks/useDayProgress';
 import { getCurrentRepeatWeek } from '../utils/progressRepository';
@@ -151,12 +150,20 @@ export default function WorkoutPlanView() {
     } = useDayProgress(client?.clientId, activeDay, exercises, repeatWeek);
 
     const handleDietAction = () => {
-        setActiveTab('diet');
-        if (rawDiet) return;
+        if (rawDiet) {
+            setActiveTab('diet');
+            return;
+        }
         if (dietStatus === 'pending') {
             navigate('/client/waiting');
             return;
         }
+        if (dietStatus === 'ready') {
+            // Plan is ready in Firebase but rawDiet hasn't loaded yet — switch to diet tab to show loading
+            setActiveTab('diet');
+            return;
+        }
+        setActiveTab('diet');
         setActiveGenerator('Diet Plan');
     };
 
@@ -208,7 +215,16 @@ export default function WorkoutPlanView() {
 
                     <button className="fit-diet-cta" onClick={handleDietAction}>
                         <Utensils size={18} />
-                        <span>{rawDiet ? 'View Diet Plan' : dietStatus === 'pending' ? 'Diet Plan Processing' : 'Generate Diet Plan'}</span>
+                        <span>
+                            {rawDiet
+                                ? 'View Diet Plan'
+                                : dietStatus === 'pending'
+                                ? '⏳ Diet Plan Processing...'
+                                : dietStatus === 'ready'
+                                ? '📋 View Diet Plan'
+                                : 'Generate Diet Plan'
+                            }
+                        </span>
                     </button>
 
                     {activeGenerator && (
@@ -248,7 +264,7 @@ export default function WorkoutPlanView() {
                         <CalorieTracker clientId={client.clientId} />
                     </section>
                 ) : activeTab === 'diet' ? (
-                    <DietPlanDetail firstName={firstName} activeDay={activeDay} rawDiet={rawDiet} />
+                    <DietPlanDetail firstName={firstName} activeDay={activeDay} rawDiet={rawDiet} dietStatus={dietStatus} />
                 ) : (
                     <TrainingPlan
                         currentDayPlan={currentDayPlan}
@@ -327,9 +343,17 @@ function TrainingPlan({
                         <strong>Day Progress</strong>
                         <span>{completedCount} of {totalCount} exercises completed</span>
                     </div>
-                    <b>{percent}%</b>
+                    <b style={{ color: percent === 100 ? '#22c55e' : '#FF5C1A' }}>{percent}%</b>
                 </div>
-                <ProgressBar completedCount={completedCount} totalCount={totalCount} percent={percent} />
+                {totalCount > 0 && (
+                    <div style={{ height: '8px', background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden', marginTop: 12 }}>
+                        <div style={{
+                            height: '100%', width: `${percent}%`, borderRadius: 4,
+                            background: percent === 100 ? 'linear-gradient(90deg,#22c55e,#4ade80)' : 'linear-gradient(90deg,#FF5C1A,#ff8c42)',
+                            transition: 'width 0.6s ease'
+                        }} />
+                    </div>
+                )}
             </div>
 
             {exercises.length ? (
@@ -356,7 +380,7 @@ function TrainingPlan({
     );
 }
 
-function DietPlanDetail({ firstName, activeDay, rawDiet }) {
+function DietPlanDetail({ firstName, activeDay, rawDiet, dietStatus }) {
     const meals = MEALS_BY_DAY[activeDay] || MEALS_BY_DAY.Monday;
 
     if (rawDiet) {
@@ -365,6 +389,19 @@ function DietPlanDetail({ firstName, activeDay, rawDiet }) {
             <section className="fit-content-panel fit-diet-detail">
                 <div className="fit-generated-diet is-open">
                     <div dangerouslySetInnerHTML={{ __html: cleanDiet }} />
+                </div>
+            </section>
+        );
+    }
+
+    // Plan is ready in Firebase but hasn't loaded into state yet
+    if (dietStatus === 'ready') {
+        return (
+            <section className="fit-content-panel fit-diet-detail">
+                <div style={{ textAlign: 'center', padding: '60px 20px' }}>
+                    <div style={{ fontSize: 40, marginBottom: 16 }}>⏳</div>
+                    <h3 style={{ color: '#fff', marginBottom: 8 }}>Loading Your Diet Plan...</h3>
+                    <p style={{ color: '#888', fontSize: 14 }}>Your plan is ready. Fetching from server...</p>
                 </div>
             </section>
         );
@@ -402,6 +439,7 @@ function DietPlanDetail({ firstName, activeDay, rawDiet }) {
         </section>
     );
 }
+
 
 function MacroCard({ label, value, detail }) {
     return (

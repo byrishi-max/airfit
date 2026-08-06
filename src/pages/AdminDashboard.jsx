@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import AdminClientTable from '../components/AdminClientTable';
 import { useAdminAuth } from '../hooks/useAuth';
@@ -22,6 +22,7 @@ export default function AdminDashboard() {
     const [isEditingDiet, setIsEditingDiet] = useState(false);
     const [editDietHtml, setEditDietHtml] = useState('');
     const [isSavingPlan, setIsSavingPlan] = useState(false);
+    const dietEditorRef = useRef(null);
     
     // Exercise Editing State
     const [editingExercise, setEditingExercise] = useState(null);
@@ -117,9 +118,10 @@ export default function AdminDashboard() {
         if (!selectedClient) return;
         setIsSavingPlan(true);
         try {
-            await saveGeneratedPlan(selectedClient.clientId, { dietHtml: editDietHtml });
-            setSelectedClient(prev => ({ ...prev, dietPlan: editDietHtml }));
-            setClients(prev => prev.map(c => c.clientId === selectedClient.clientId ? { ...c, dietPlan: editDietHtml } : c));
+            const finalHtml = dietEditorRef.current ? dietEditorRef.current.innerHTML : editDietHtml;
+            await saveGeneratedPlan(selectedClient.clientId, { dietHtml: finalHtml });
+            setSelectedClient(prev => ({ ...prev, dietPlan: finalHtml }));
+            setClients(prev => prev.map(c => c.clientId === selectedClient.clientId ? { ...c, dietPlan: finalHtml } : c));
             setIsEditingDiet(false);
             showToast('Diet plan updated successfully!', 'success');
         } catch (error) {
@@ -155,7 +157,7 @@ export default function AdminDashboard() {
 
     const extractYoutubeId = (str) => {
         if (!str) return '';
-        const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|watch\?v=|watch\?.+&v=))([^&?]+)/);
+        const match = str.match(/(?:youtu\.be\/|youtube\.com\/(?:embed\/|v\/|shorts\/|watch\?v=|watch\?.+&v=))([^&?\/]+)/);
         return match ? match[1] : str.trim();
     };
 
@@ -374,15 +376,21 @@ export default function AdminDashboard() {
                                     isEditingDiet ? (
                                         <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
                                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px' }}>
-                                                <p style={{ margin: 0, color: '#888' }}>Editing raw Diet HTML.</p>
+                                                <p style={{ margin: 0, color: '#888' }}>Editing Diet Plan visually. Click anywhere on the text below to edit it.</p>
                                                 <button onClick={handleSaveDiet} disabled={isSavingPlan} style={{ padding: '8px 16px', background: '#FF5C1A', color: '#fff', border: 'none', borderRadius: '6px', fontWeight: 'bold', cursor: 'pointer' }}>
                                                     {isSavingPlan ? 'Saving...' : 'Save Diet Changes'}
                                                 </button>
                                             </div>
-                                            <textarea 
-                                                value={editDietHtml}
-                                                onChange={(e) => setEditDietHtml(e.target.value)}
-                                                style={{ flex: 1, minHeight: '300px', width: '100%', padding: '16px', background: '#0C0C0C', color: '#ccc', border: '1px solid #333', borderRadius: '8px', fontFamily: 'monospace', fontSize: '13px', resize: 'vertical' }}
+                                            <div 
+                                                ref={dietEditorRef}
+                                                contentEditable={true}
+                                                suppressContentEditableWarning={true}
+                                                dangerouslySetInnerHTML={{ __html: editDietHtml }}
+                                                style={{ 
+                                                    background: '#1a1a1a', padding: '24px', borderRadius: '8px', 
+                                                    border: '2px solid #FF5C1A', outline: 'none', minHeight: '300px',
+                                                    color: '#e0e0e0', cursor: 'text'
+                                                }}
                                             />
                                             <button onClick={() => setIsEditingDiet(false)} style={{ marginTop: '16px', padding: '8px', background: 'transparent', border: '1px solid #333', color: '#888', borderRadius: '6px', cursor: 'pointer', alignSelf: 'flex-start' }}>Cancel</button>
                                         </div>

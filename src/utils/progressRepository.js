@@ -1,6 +1,6 @@
 import { getDailyCalories as getLocalDailyCalories, getProgress as getLocalProgress, logDailyCalories as logLocalDailyCalories, setProgress as setLocalProgress } from './storage';
 import { isFirebaseConfigured, db, toIsoNow } from './firebaseClient';
-import { collection, doc, setDoc, getDocs, query, where, orderBy, addDoc } from 'firebase/firestore';
+import { collection, doc, setDoc, getDocs, deleteDoc, query, where, orderBy, addDoc } from 'firebase/firestore';
 
 export async function getExerciseProgressMap(clientId, weekNumber, dayName) {
   if (!isFirebaseConfigured || !clientId) return null;
@@ -93,6 +93,10 @@ export function getCurrentRepeatWeek(generatedAt, now = new Date()) {
   return (Math.floor(elapsedDays / 7) % 4) + 1;
 }
 
+/**
+ * Only count "main" phase exercises — not warmup, cooldown, cardio, core injected by workoutEnhancer.
+ * This ensures progress percentages are correct (user can only tick main exercises).
+ */
 function getWorkoutTemplate(workoutPlan) {
   const days = Array.isArray(workoutPlan?.days) ? workoutPlan.days : [];
   const exerciseKeys = new Set();
@@ -102,6 +106,9 @@ function getWorkoutTemplate(workoutPlan) {
     const dayName = day.day || '';
     (day.exercises || []).forEach(exercise => {
       if (!exercise?.name) return;
+      // Only count main exercises — skip warmup/cooldown/cardio/core phases
+      const phase = (exercise.phase || 'main').toLowerCase();
+      if (phase !== 'main') return;
       exerciseCount += 1;
       exerciseKeys.add(`${dayName}::${exercise.name}`);
     });
@@ -111,7 +118,7 @@ function getWorkoutTemplate(workoutPlan) {
     days,
     exerciseCount,
     exerciseKeys,
-    workoutDayCount: days.filter(day => (day.exercises || []).length > 0).length,
+    workoutDayCount: days.filter(day => (day.exercises || []).some(ex => (ex.phase || 'main') === 'main')).length,
   };
 }
 
@@ -199,7 +206,7 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
   if (!isFirebaseConfigured) {
     const currentWeekDone = template.days.reduce((sum, day) => {
       return sum + (day.exercises || []).filter(exercise =>
-        getLocalProgress(clientId, currentWeek, day.day, exercise.name)
+        exercise.phase === 'main' && getLocalProgress(clientId, currentWeek, day.day, exercise.name)
       ).length;
     }, 0);
     const localWaterRows = await getWaterForDate(clientId);
@@ -228,32 +235,29 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
   }
 
   const weekNumbers = [1, 2, 3, 4];
-  const [exerciseSnap, daySnap, monthCaloriesRows, todayCaloriesRows, waterRows, weightRows] = await Promise.all([
+  const [exerciseSnap, daySnap, waterRows, weightRows] = await Promise.all([
     getDocs(query(collection(db, 'clients', clientId, 'exercise_progress'), where('week_number', 'in', weekNumbers), where('completed', '==', true))),
     getDocs(query(collection(db, 'clients', clientId, 'day_progress'), where('week_number', 'in', weekNumbers), where('done', '==', true))),
-    getDocs(query(collection(db, 'clients', clientId, 'calorie_logs'), where('log_date', '>=', startOfMonthDate()))),
-    getCaloriesForDate(clientId),
     getWaterForDate(clientId),
     getWeightLogs(clientId),
   ]);
 
+  // Get today and monthly calories without composite index (fetch all, filter client-side)
+  const todayCaloriesRows = await getCaloriesForDate(clientId).catch(() => []);
+  const monthCaloriesRows = await getCaloriesForMonth(clientId).catch(() => []);
+
   const exerciseRows = exerciseSnap.docs.map(d => d.data());
   const dayRows = daySnap.docs.map(d => d.data());
-  const monthCaloriesData = monthCaloriesRows.docs.map(d => d.data());
 
-  const validCompletedExerciseKeys = new Set();
-  exerciseRows.forEach(row => {
-    if (!template.exerciseKeys.has(`${row.day_name}::${row.exercise_name}`)) return;
-    validCompletedExerciseKeys.add(`${row.week_number}::${row.day_name}::${row.exercise_name}`);
-  });
+  // Count ALL completed exercise_progress rows for current week — no template filtering
+  // (template day names might be 'Day 4' but Firestore stores 'Thursday' — can't reliably cross-match)
+  const currentWeekDone = exerciseRows.filter(row => row.week_number === currentWeek && row.completed).length;
+  const monthlyDone = exerciseRows.filter(row => row.completed).length;
 
-  const currentWeekDone = Array.from(validCompletedExerciseKeys)
-    .filter(key => key.startsWith(`${currentWeek}::`)).length;
-
-  const weeklyProgress = await getWeeklyProgress(clientId, currentWeek);
+  const weeklyProgress = await getWeeklyProgress(clientId, currentWeek).catch(() => null);
   const todayCalories = (todayCaloriesRows || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
   const weekCalories = (weeklyProgress?.calories || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
-  const monthCalories = monthCaloriesData.reduce((sum, log) => sum + Number(log.calories || 0), 0);
+  const monthCalories = (monthCaloriesRows || []).reduce((sum, log) => sum + Number(log.calories || 0), 0);
   const workoutPercent = template.exerciseCount ? Math.round((currentWeekDone / template.exerciseCount) * 100) : 0;
 
   return {
@@ -261,7 +265,7 @@ export async function getProgressSummary(clientId, workoutPlan, generatedAt) {
     currentWeek,
     currentWeekDone,
     currentWeekTotal: template.exerciseCount,
-    monthlyDone: validCompletedExerciseKeys.size,
+    monthlyDone,
     monthlyTotal: monthlyExerciseTarget,
     completedDays: dayRows.length,
     totalDays: monthlyDayTarget,
@@ -290,7 +294,7 @@ export async function logCalories(clientId, food, calories) {
   const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
   await addDoc(logsRef, {
     client_id: clientId,
-    log_date: new Date().toISOString().split('T')[0],
+    log_date: todayDate(),
     food,
     calories: Number(calories),
     created_at: toIsoNow()
@@ -299,24 +303,55 @@ export async function logCalories(clientId, food, calories) {
   return getCaloriesForDate(clientId);
 }
 
-export async function getCaloriesForDate(clientId, date = new Date().toISOString().split('T')[0]) {
+export async function getCaloriesForDate(clientId, date = todayDate()) {
   if (!isFirebaseConfigured || !clientId) {
     return getLocalDailyCalories(clientId);
   }
 
-  const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
-  const q = query(logsRef, where('log_date', '==', date), orderBy('created_at', 'desc'));
-  const snapshot = await getDocs(q);
-  
-  return snapshot.docs.map(docSnap => {
-    const row = docSnap.data();
-    return {
-      food: row.food,
-      calories: row.calories,
-      time: new Date(row.created_at).toLocaleTimeString(),
-      createdAt: row.created_at,
-    };
-  });
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
+    const q = query(logsRef, where('log_date', '==', date));
+    const snapshot = await getDocs(q);
+    
+    return snapshot.docs
+      .map(docSnap => {
+        const row = docSnap.data();
+        return {
+          docId: docSnap.id,
+          food: row.food,
+          calories: row.calories,
+          time: row.created_at ? new Date(row.created_at).toLocaleTimeString() : '',
+          createdAt: row.created_at || '',
+        };
+      })
+      .sort((a, b) => String(b.createdAt).localeCompare(String(a.createdAt)));
+  } catch (error) {
+    console.warn('[AirFit] getCaloriesForDate error:', error);
+    return [];
+  }
+}
+
+export async function deleteCalorieLog(clientId, docId) {
+  if (!isFirebaseConfigured || !clientId || !docId) return;
+  try {
+    await deleteDoc(doc(db, 'clients', clientId, 'calorie_logs', docId));
+  } catch (error) {
+    console.warn('[AirFit] deleteCalorieLog error:', error);
+  }
+}
+
+async function getCaloriesForMonth(clientId) {
+  if (!isFirebaseConfigured || !clientId) return [];
+
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
+    const q = query(logsRef, where('log_date', '>=', startOfMonthDate()));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(d => d.data());
+  } catch (error) {
+    console.warn('[AirFit] getCaloriesForMonth error:', error);
+    return [];
+  }
 }
 
 async function getWeeklyCalories(clientId) {
@@ -324,10 +359,15 @@ async function getWeeklyCalories(clientId) {
   since.setDate(since.getDate() - 6);
   const sinceDate = since.toISOString().split('T')[0];
   
-  const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
-  const q = query(logsRef, where('log_date', '>=', sinceDate));
-  const snapshot = await getDocs(q);
-  return snapshot.docs.map(doc => doc.data());
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'calorie_logs');
+    const q = query(logsRef, where('log_date', '>=', sinceDate));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data());
+  } catch (error) {
+    console.warn('[AirFit] getWeeklyCalories error:', error);
+    return [];
+  }
 }
 
 export async function logWater(clientId, amountMl, date = todayDate()) {
@@ -345,32 +385,24 @@ export async function logWater(clientId, amountMl, date = todayDate()) {
     return rows;
   }
 
-  // Use a single document per day to avoid query index issues and simplify syncing
-  const docRef = doc(db, 'clients', clientId, 'water_logs', date);
-  await setDoc(docRef, {
-    client_id: clientId,
-    log_date: date,
-    amount_ml: row.amountMl, // We'll accumulate on the frontend for now, or just trust the array
-    created_at: row.createdAt,
-    // Add to an array to keep history
-  }, { merge: false }); // Resetting for simplicity, or we can fetch and add. 
-  
-  // Wait, let's just addDoc as before, but update the client document's water_today field to guarantee it syncs immediately!
-  const logsRef = collection(db, 'clients', clientId, 'water_logs');
-  await addDoc(logsRef, {
-    client_id: clientId,
-    log_date: date,
-    amount_ml: row.amountMl,
-    created_at: row.createdAt,
-  });
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'water_logs');
+    await addDoc(logsRef, {
+      client_id: clientId,
+      log_date: date,
+      amount_ml: row.amountMl,
+      created_at: row.createdAt,
+    });
+  } catch (error) {
+    console.warn('[AirFit] logWater Firebase error:', error);
+    // Fallback to localStorage
+    const key = localWaterKey(clientId, date);
+    const rows = readLocalList(key);
+    rows.unshift(row);
+    writeLocalList(key, rows);
+  }
 
-  // Also store summary directly on client doc to guarantee sync
-  const clientRef = doc(db, 'clients', clientId);
-  const currentLogs = await getWaterForDate(clientId, date);
-  const totalWater = currentLogs.reduce((sum, log) => sum + log.amountMl, 0);
-  await setDoc(clientRef, { water_today: totalWater, water_date: date }, { merge: true });
-
-  return currentLogs;
+  return getWaterForDate(clientId, date);
 }
 
 export async function getWaterForDate(clientId, date = todayDate()) {
@@ -378,20 +410,25 @@ export async function getWaterForDate(clientId, date = todayDate()) {
     return readLocalList(localWaterKey(clientId, date));
   }
 
-  const logsRef = collection(db, 'clients', clientId, 'water_logs');
-  const q = query(logsRef, where('log_date', '==', date));
-  const snapshot = await getDocs(q);
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'water_logs');
+    const q = query(logsRef, where('log_date', '==', date));
+    const snapshot = await getDocs(q);
 
-  return snapshot.docs
-    .map(docSnap => {
-      const row = docSnap.data();
-      return {
-        amountMl: Number(row.amount_ml || 0),
-        logDate: row.log_date,
-        createdAt: row.created_at,
-      };
-    })
-    .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+    return snapshot.docs
+      .map(docSnap => {
+        const row = docSnap.data();
+        return {
+          amountMl: Number(row.amount_ml || 0),
+          logDate: row.log_date,
+          createdAt: row.created_at,
+        };
+      })
+      .sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+  } catch (error) {
+    console.warn('[AirFit] getWaterForDate error:', error);
+    return [];
+  }
 }
 
 export async function logWeight(clientId, weightKg, date = todayDate()) {
@@ -409,17 +446,26 @@ export async function logWeight(clientId, weightKg, date = todayDate()) {
     return rows;
   }
 
-  const logsRef = collection(db, 'clients', clientId, 'weight_logs');
-  await addDoc(logsRef, {
-    client_id: clientId,
-    log_date: date,
-    weight_kg: row.weightKg,
-    created_at: row.createdAt,
-  });
+  try {
+    const logsRef = collection(db, 'clients', clientId, 'weight_logs');
+    await addDoc(logsRef, {
+      client_id: clientId,
+      log_date: date,
+      weight_kg: row.weightKg,
+      created_at: row.createdAt,
+    });
 
-  // Also update the client's latest weight on their main document
-  const clientRef = doc(db, 'clients', clientId);
-  await setDoc(clientRef, { latest_weight_kg: row.weightKg, latest_weight_date: date }, { merge: true });
+    // Also update the client's latest weight on their main document
+    const clientRef = doc(db, 'clients', clientId);
+    await setDoc(clientRef, { latest_weight_kg: row.weightKg, latest_weight_date: date }, { merge: true });
+  } catch (error) {
+    console.warn('[AirFit] logWeight Firebase error:', error);
+    // Fallback to localStorage
+    const key = localWeightKey(clientId);
+    const rows = readLocalList(key);
+    rows.unshift(row);
+    writeLocalList(key, rows);
+  }
 
   return getWeightLogs(clientId);
 }
@@ -429,7 +475,6 @@ export async function getWeightLogs(clientId) {
     return readLocalList(localWeightKey(clientId));
   }
 
-  // Fallback to client document if query fails (missing index)
   try {
     const logsRef = collection(db, 'clients', clientId, 'weight_logs');
     const q = query(logsRef, orderBy('created_at', 'desc'));
@@ -444,7 +489,7 @@ export async function getWeightLogs(clientId) {
       };
     });
   } catch (error) {
-    console.warn("Weight query failed (possibly missing index), falling back to single lookup");
+    console.warn('[AirFit] getWeightLogs error (possibly missing index), falling back:', error);
     return [];
   }
 }

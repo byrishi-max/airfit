@@ -1,0 +1,20 @@
+const { execSync } = require('child_process');
+
+const envs = {
+  "REACT_APP_N8N_BASE": "http://airfitplangen.duckdns.org/webhook",
+  "REACT_APP_ADMIN_PASSWORD": "airfitadmin2026",
+  "REACT_APP_FIREBASE_API_KEY": "AIzaSyDcZEpa8F2fCd5pz9Ek0IHcKOUnhrz1CXk",
+  "REACT_APP_FIREBASE_AUTH_DOMAIN": "airfit-db.firebaseapp.com",
+  "REACT_APP_FIREBASE_PROJECT_ID": "airfit-db",
+  "REACT_APP_FIREBASE_STORAGE_BUCKET": "airfit-db.firebasestorage.app",
+  "REACT_APP_FIREBASE_MESSAGING_SENDER_ID": "319269345671",
+  "REACT_APP_FIREBASE_APP_ID": "1:319269345671:web:46ab8948844a7227139b22",
+  "REACT_APP_FIREBASE_MEASUREMENT_ID": "G-D830SV6504"
+};
+
+for (const [key, value] of Object.entries(envs)) {
+  console.log(`Adding ${key}...`);
+  execSync(`vercel env add ${key} production,preview,development --value "${value}" --yes --no-sensitive`, { stdio: 'inherit' });
+}
+
+console.log("Done adding envs!");
